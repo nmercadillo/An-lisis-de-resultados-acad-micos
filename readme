@@ -1,51 +1,48 @@
-# 📊 Analizador de Resultados Académicos LOMLOE (Offline)
+# 📊 Analizador Académico LOMLOE (Versión v2.0 - Alta Compatibilidad)
 
-Esta herramienta permite a los centros educativos analizar los resultados académicos del alumnado de forma automática, visual y **100% privada**. Está diseñada para procesar archivos Excel exportados de plataformas de gestión educativa (como iPasen, Séneca, etc.) y generar comparativas por niveles y evolución histórica.
+Esta herramienta está diseñada para centros educativos que necesitan procesar datos de rendimiento escolar de forma rápida, visual y privada. Esta versión incluye un motor de lectura binaria optimizado para archivos de hojas de cálculo antiguos y modernos.
 
-## 🛡️ Privacidad y Seguridad
-A diferencia de otras herramientas, este analizador funciona íntegramente en el **lado del cliente** (tu navegador). 
-- **Los datos no se suben a ningún servidor.**
-- El procesamiento se realiza en la memoria local de tu ordenador.
-- Una vez cerrada la pestaña, no queda rastro de la información procesada.
+## 🛠️ Novedades de la Versión 2.0
+- **Compatibilidad Extendida:** Soporte nativo para archivos con extensión `.xls` (formato binario antiguo) y `.xlsx`.
+- **Motor de Lectura Buffer:** Utiliza `ArrayBuffer` para evitar la corrupción de datos en exportaciones de plataformas como Séneca o iPasen.
+- **Corrección de Decimales:** Manejo automático de notas con coma (formato español) para evitar errores de cálculo en los promedios de suspensos.
 
-## 🚀 Funcionalidades Principales
+## 🛡️ Privacidad Garantizada
+La aplicación es una **SPA (Single Page Application) Offline**:
+1. Los archivos Excel se leen en la memoria RAM de tu navegador.
+2. **Ningún dato se envía a internet.** No hay bases de datos ni servidores externos.
+3. Cumple estrictamente con el **RGPD**, ya que los datos personales (Nombres, Apellidos, Notas) nunca abandonan tu ordenador.
 
-* **Segmentación Automática:** Clasifica por niveles (ESO, Bachillerato, FP Grado Básico).
-* **Gestión de Diversificación:** Integra automáticamente los grupos de 1º PDC/DIV en 3º de ESO y 2º PDC/DIV en 4º de ESO.
-* **Análisis de Suspensos:** Clasifica al alumnado en 4 rangos: 0, 1-2, 3-4 y 5 o más materias suspensas.
-* **Comparativa Trienal:** Al cargar archivos de años anteriores, genera tablas comparativas de rendimiento.
-* **Gráficos Interactivos:** Gráficas de barras estilizadas para comparar grupos dentro del mismo nivel.
-* **Exportación:** Genera un archivo `.xlsx` editable con los resultados tabulados.
+## 📋 Requisitos del Archivo de Datos
+Para que el análisis sea preciso, asegúrate de que tu archivo (.xls o .xlsx) contenga la siguiente estructura de columnas:
 
-## 📋 Requisitos del Archivo Excel
-
-Para que el análisis sea correcto, el archivo Excel debe tener la información en las siguientes columnas (mapeo estándar):
-
-| Columna | Datos |
+| Columna | Información |
 | :--- | :--- |
-| **E, F, G** | Apellido 1, Apellido 2, Nombre |
-| **K** | Etapa Educativa |
-| **N** | Unidad / Grupo (Ej: 1A, 2B, DIV1...) |
-| **T** | Materia |
-| **W / X** | 1ª Evaluación / 2ª Evaluación |
-| **Z / AB** | Ordinaria (Bach/FP) / Final (ESO) |
-| **AA** | Extraordinaria |
+| **E, F, G** | Apellidos y Nombre del alumno/a |
+| **K** | Etapa Educativa (ESO, Bachillerato, FPB) |
+| **N** | Unidad o Grupo (Ej: 1A, 2B, DIV1, PDC2) |
+| **T** | Nombre de la Materia |
+| **W** | Calificación 1ª Evaluación |
+| **X** | Calificación 2ª Evaluación |
+| **Z** | Calificación Ordinaria (Bachillerato/FP) |
+| **AB** | Calificación Final (ESO) |
+| **AA** | Calificación Extraordinaria |
 
-## ⚙️ Configuración en GitHub Pages
+> **Nota sobre Diversificación:** El sistema detecta automáticamente etiquetas como `DIV`, `PDC`, `DIV1` o `DIV2` y las integra en las secciones de 3º y 4º de ESO respectivamente.
 
-Si quieres alojar esta herramienta para que tu equipo pueda usarla desde una URL privada:
+## 🚀 Instrucciones de Uso
 
-1.  Sube el archivo `index.html` a tu repositorio de GitHub.
-2.  Ve a la pestaña **Settings** (Configuración) de tu repositorio.
-3.  En el menú de la izquierda, selecciona **Pages**.
-4.  En la sección "Build and deployment", asegúrate de que esté seleccionada la rama `main` y la carpeta `/ (root)`.
-5.  Haz clic en **Save**. En unos minutos, tendrás una URL (ej: `https://usuario.github.io/repositorio/`) lista para usar.
+1. **Carga:** Selecciona el archivo del año actual (obligatorio) y, opcionalmente, los archivos de los dos años anteriores para la comparativa.
+2. **Selección:** Elige en el menú desplegable qué evaluación deseas analizar (1ª, 2ª, Final u Ordinaria).
+3. **Análisis:** Pulsa **"Analizar Datos"**. Se generarán tablas por niveles, gráficas de barras comparativas y cuadros de evolución histórica.
+4. **Exportación:** Pulsa **"Exportar Excel"** para obtener un archivo `.xlsx` editable con todos los cálculos y porcentajes ya realizados, organizado por pestañas.
 
-## 🛠️ Tecnologías Utilizadas
-
-* [SheetJS (XLSX)](https://sheetjs.com/) - Para la lectura y escritura de archivos Excel.
-* [Chart.js](https://www.chartjs.org/) - Para la generación de gráficas de rendimiento.
-* [Tailwind CSS](https://tailwindcss.com/) - Para el diseño de la interfaz.
+## 🌐 Despliegue en GitHub Pages
+Para usar esta herramienta desde cualquier lugar de forma privada:
+1. Sube el archivo `index.html` y este `README.md` a un repositorio.
+2. En GitHub, ve a **Settings > Pages**.
+3. Selecciona la rama `main` y guarda.
+4. GitHub te dará una URL segura (HTTPS) para acceder a tu analizador.
 
 ---
-**Nota:** Esta herramienta ha sido desarrollada para simplificar la burocracia docente y mejorar la toma de decisiones basada en datos reales de rendimiento.
+*Desarrollado para la optimización de la gestión docente y el análisis de resultados académicos bajo normativa LOMLOE.*
