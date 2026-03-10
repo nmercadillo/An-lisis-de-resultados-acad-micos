@@ -1,47 +1,54 @@
-# 📊 Analizador de Resultados Académicos (Offline)
+# 📊 Analizador de Resultados Académicos LOMLOE
 
-Esta herramienta permite a los centros educativos analizar los resultados académicos de su alumnado a partir de archivos Excel extraídos de plataformas de gestión educativa. 
+Esta aplicación web permite realizar un análisis profundo y comparativo de los resultados académicos de los centros educativos. Está diseñada para funcionar de forma **completamente offline y privada**, procesando los datos directamente en el navegador sin subirlos a ningún servidor.
 
-Está diseñada para ser **100% privada**: los datos no se envían a ningún servidor, todo el procesamiento ocurre localmente en el navegador del usuario.
+## ✨ Funciones Principales
 
-## ✨ Características principaless
+- **Análisis Multianual:** Compara los resultados actuales con los dos cursos anteriores de forma automática.
+- **Desglose por Secciones:** Agrupación inteligente según la normativa vigente:
+    - 1º y 2º ESO.
+    - 3º ESO (Incluye 1º Diversificación).
+    - 4º ESO (Incluye 2º Diversificación).
+    - 1º y 2º de Grado Básico (FPB).
+    - 1º y 2º de Bachillerato.
+- **Gráficas de Rendimiento:** Comparativa visual mediante barras apiladas que muestran el porcentaje de alumnos con 0, 1-2, 3-4 y 5+ suspensos.
+- **Exportación:** Genera un archivo Excel (.xlsx) totalmente editable con todos los cálculos realizados.
 
-- **Privacidad Total:** Funciona en el lado del cliente (Client-side). Los nombres y notas de los alumnos nunca salen de tu ordenador.
-- **Análisis por Evaluación:** Permite seleccionar entre 1ª, 2ª, Ordinaria/Final y Extraordinaria.
-- **Detección de Riesgo:** Clasifica automáticamente al alumnado por número de suspensos (0, 1-2, 3-4, 5 o más).
-- **Gráficas Comparativas:** Genera una gráfica de barras apiladas para comparar el rendimiento entre grupos y niveles de un vistazo.
-- **Exportación Editable:** Descarga un informe en formato `.xlsx` con las estadísticas calculadas y una lista nominal de alumnos con 5 o más suspensos para el equipo de orientación.
+## 📋 Requisitos de los Archivos Excel
 
-## 📋 Requisitos del archivo Excel
+Para que la comparativa histórica funcione, los archivos deben seguir la estructura de exportación estándar y nombrarse según el curso académico (ejemplo: `2024-2025.xlsx`, `2025-2026.xlsx`).
 
-Para que la aplicación funcione correctamente, el archivo Excel debe tener la información en las siguientes columnas:
-
-| Columna | Información |
+### Mapeo de Columnas:
+| Columna | Datos |
 | :--- | :--- |
-| **E, F, G** | Apellidos y Nombre |
-| **K** | Etapa educativa |
+| **E, F, G** | Apellidos y Nombre del alumno |
+| **K** | Etapa/Nivel (Utilizado para clasificar Diversificación y niveles) |
 | **N** | Unidad / Grupo (ej: 1º ESO A) |
-| **T** | Materia |
 | **W** | Calificación 1ª Evaluación |
 | **X** | Calificación 2ª Evaluación |
-| **Z** | Calificación Ordinaria (Bach/FP) |
-| **AB** | Calificación Final (ESO) |
+| **Z** | Calificación Ordinaria (Bachillerato / FP) |
+| **AB** | Calificación Final (ESO / Diversificación) |
 | **AA** | Calificación Extraordinaria |
 
-## 🚀 Instalación y Uso
+## 🚀 Instrucciones de Uso
 
-1.  **Instalación:** No requiere. Solo sube el archivo `index.html` a un repositorio de GitHub y activa **GitHub Pages**.
-2.  **Uso:** - Abre la URL generada por GitHub Pages.
-    - Selecciona el tipo de evaluación que quieres analizar.
-    - Sube tu archivo Excel.
-    - Revisa las gráficas y tablas en pantalla.
-    - Haz clic en "Descargar Informe Editable" para obtener el resumen en Excel.
+1. **Configuración inicial:** Selecciona en el menú desplegable qué evaluación deseas analizar (1ª, 2ª, Ordinaria o Extraordinaria).
+2. **Carga de datos:** Haz clic en el botón de carga y selecciona los **tres archivos Excel** (el actual y los dos anteriores) simultáneamente.
+3. **Visualización:** La página generará automáticamente las tablas por grupo, las gráficas comparativas y los cuadros de evolución histórica por nivel.
+4. **Descarga:** Haz clic en "Exportar Informe Editable" para obtener los resultados en un formato Excel que puedas usar en tus memorias trimestrales.
 
-## 🛠️ Tecnologías utilizadas
+## 🔒 Privacidad y Seguridad
 
-- [SheetJS](https://sheetjs.com/) - Para la lectura y escritura de archivos Excel.
-- [Chart.js](https://www.chartjs.org/) - Para la visualización de datos.
-- [Tailwind CSS](https://tailwindcss.com/) - Para el diseño de la interfaz.
+Esta aplicación utiliza tecnología **Client-Side**:
+- **No hay base de datos.**
+- **No hay servidor.**
+- Los datos de los alumnos nunca salen de tu ordenador. Al cerrar la pestaña, la información desaparece de la memoria del navegador.
+
+## 🛠️ Tecnologías
+
+- **SheetJS:** Para el procesado de datos Excel.
+- **Chart.js:** Para la generación de gráficas dinámicas.
+- **Tailwind CSS:** Para una interfaz limpia y adaptada a dispositivos móviles.
 
 ---
-*Desarrollado para la gestión eficiente y privada de datos académicos.*
+*Herramienta desarrollada para la optimización de procesos de evaluación educativa.*
