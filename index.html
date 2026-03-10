@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analizador de Resultados Académicos LOMLOE</title>
+    <title>Analizador Académico LOMLOE (.xls/.xlsx)</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -17,18 +17,18 @@
 
     <div class="max-w-6xl mx-auto mb-8 no-print">
         <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-600">
-            <h1 class="text-3xl font-extrabold text-blue-900 mb-2 text-center">Analizador de Rendimiento Académico</h1>
+            <h1 class="text-3xl font-extrabold text-blue-900 mb-2 text-center">Analizador de Rendimiento (.xls compatible)</h1>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div class="bg-blue-50 p-4 rounded-lg">
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
                     <label class="block text-sm font-bold text-blue-700 mb-1">Año Actual:</label>
                     <input type="file" id="fileCurrent" class="text-xs w-full" accept=".xlsx, .xls">
                 </div>
-                <div class="bg-slate-50 p-4 rounded-lg">
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
                     <label class="block text-sm font-bold text-slate-600 mb-1">Año Anterior (-1):</label>
                     <input type="file" id="filePrev1" class="text-xs w-full" accept=".xlsx, .xls">
                 </div>
-                <div class="bg-slate-50 p-4 rounded-lg">
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
                     <label class="block text-sm font-bold text-slate-600 mb-1">Año Anteanterior (-2):</label>
                     <input type="file" id="filePrev2" class="text-xs w-full" accept=".xlsx, .xls">
                 </div>
@@ -44,11 +44,11 @@
                         <option value="AA">Extraordinaria</option>
                     </select>
                 </div>
-                <button id="btnAnalyze" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-8 rounded-lg shadow-md transition-all transform hover:scale-105">
+                <button id="btnAnalyze" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-8 rounded-lg shadow-md transition-all">
                     Analizar Datos
                 </button>
                 <button id="btnExport" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-8 rounded-lg shadow-md transition-all">
-                    Exportar Excel (.xlsx)
+                    Exportar Excel
                 </button>
             </div>
         </div>
@@ -56,7 +56,7 @@
 
     <div id="reportOutput" class="max-w-6xl mx-auto space-y-12">
         <div class="text-center py-20 text-slate-400">
-            <p>Carga los archivos y pulsa "Analizar Datos" para generar el informe.</p>
+            <p>Soporta archivos .xls y .xlsx. Selecciona tus archivos y pulsa Analizar.</p>
         </div>
     </div>
 
@@ -69,26 +69,89 @@
 
         let databaseGlobal = {}; 
 
-        // Registro de eventos para asegurar que funcionen
         document.getElementById('btnAnalyze').addEventListener('click', processAll);
         document.getElementById('btnExport').addEventListener('click', exportToExcel);
 
         async function processAll() {
             const output = document.getElementById('reportOutput');
             const evalCol = document.getElementById('evalSelect').value;
-            const fileInputs = {
+            const inputs = {
                 'Actual': document.getElementById('fileCurrent').files[0],
                 'Anterior_1': document.getElementById('filePrev1').files[0],
                 'Anterior_2': document.getElementById('filePrev2').files[0]
             };
 
-            if(!fileInputs.Actual) {
-                alert("Es obligatorio cargar el archivo del año actual.");
-                return;
-            }
-
-            output.innerHTML = '<div class="text-center text-xl font-bold p-10">Procesando archivos... por favor espera.</div>';
+            if(!inputs.Actual) return alert("Carga el archivo actual.");
             
+            output.innerHTML = '<div class="text-center p-10 font-bold">Leyendo archivos binarios...</div>';
+
             try {
                 databaseGlobal = {};
-                for (let label in fileInputs)
+                for (let label in inputs) {
+                    if (inputs[label]) {
+                        const rawData = await readExcel(inputs[label]);
+                        databaseGlobal[label] = analyzeRows(rawData, evalCol);
+                    }
+                }
+                renderReport();
+            } catch (e) {
+                console.error(e);
+                output.innerHTML = `<div class="text-red-500 p-10 font-bold">Error: ${e.message}</div>`;
+            }
+        }
+
+        function readExcel(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        // 'array' es el tipo más compatible para .xls binarios
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        // header: "A" fuerza a usar letras de columna independientemente del contenido
+                        resolve(XLSX.utils.sheet_to_json(firstSheet, { header: "A", defval: "" }));
+                    } catch (err) { reject(err); }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function analyzeRows(rows, evalCol) {
+            let alumnos = {};
+            rows.forEach((row, i) => {
+                if(i === 0 || !row.E) return; // Saltar cabecera o filas sin nombre
+
+                const id = `${row.E} ${row.F} ${row.G}`.trim();
+                const unidad = String(row.N || "S/G").trim();
+                const etapa = String(row.K || "").trim();
+                const nivel = mapToNivel(etapa, unidad);
+
+                if (!alumnos[id]) {
+                    alumnos[id] = { unidad, nivel, suspensos: 0 };
+                }
+
+                let notaRaw = 5; // Por defecto aprobado si no hay dato
+                if (evalCol === 'AB_Z') {
+                    // Verificación estricta de existencia de columna para .xls
+                    const valAB = row.AB !== undefined ? row.AB : "";
+                    const valZ = row.Z !== undefined ? row.Z : "";
+                    notaRaw = valAB !== "" ? valAB : (valZ !== "" ? valZ : 5);
+                } else {
+                    notaRaw = row[evalCol] !== undefined ? row[evalCol] : 5;
+                }
+
+                const nota = parseFloat(String(notaRaw).replace(',', '.'));
+                if (!isNaN(nota) && nota < 5) alumnos[id].suspensos++;
+            });
+
+            // Agrupación estadística
+            let stats = {};
+            for (let id in alumnos) {
+                const a = alumnos[id];
+                if(!stats[a.nivel]) stats[a.nivel] = { grupos: {}, totalNivel: { '0':0, '1-2':0, '3-4':0, '5+':0, total:0 } };
+                if(!stats[a.nivel].grupos[a.unidad]) stats[a.nivel].grupos[a.unidad] = { '0':0, '1-2':0, '3-4':0, '5+':0, total:0 };
+
+                const r = a.suspensos === 0 ? '0' : (a.suspensos <= 2 ? '1-2' : (a.suspensos <= 4 ? '3-4' : '5+'));
+                stats[a
