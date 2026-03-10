@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizador Académico - Centro Educativo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto bg-white shadow-2xl rounded-2xl overflow-hidden">
+        <div class="bg-blue-700 p-6 text-white">
+            <h1 class="text-3xl font-bold">📊 Analizador de Resultados Académicos</h1>
+            <p class="opacity-80">Procesamiento local y privado de datos escolares</p>
+        </div>
+
+        <div class="p-6 border-b bg-slate-50 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2 uppercase text-xs tracking-wider">1. Cargar Archivo Excel</label>
+                <input type="file" id="excelInput" accept=".xlsx, .xls" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition-all cursor-pointer"/>
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2 uppercase text-xs tracking-wider">2. Selección de Evaluación</label>
+                <select id="evaluacionSel" class="w-full p-2.5 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    <option value="W">1ª Evaluación (Col. W)</option>
+                    <option value="X">2ª Evaluación (Col. X)</option>
+                    <option value="FINAL">Ordinaria / Final (Col. Z / AB)</option>
+                    <option value="AA">Extraordinaria (Col. AA)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="px-6 py-4 flex justify-end bg-white">
+            <button id="exportBtn" class="hidden bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all flex items-center gap-2">
+                📥 Descargar Informe Editable (.xlsx)
+            </button>
+        </div>
+
+        <div id="dashboard" class="hidden p-6 space-y-10">
+            <div class="bg-slate-50 p-4 rounded-xl border border-gray-200">
+                <h3 class="text-lg font-bold mb-4 text-gray-700 border-l-4 border-blue-600 pl-3">Comparativa de Rendimiento por Grupo (%)</h3>
+                <div class="h-[400px]">
+                    <canvas id="graficaBarras"></canvas>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <h3 class="text-lg font-bold mb-4 text-gray-700 border-l-4 border-green-600 pl-3">Tabla de Resultados Absolutos y Porcentajes</h3>
+                <div id="tablasResultados"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let datosGlobales = [];
+        let chartInstancia = null;
+        let resultadosResumen = [];
+        let alumnosRiesgo = [];
+
+        document.getElementById('excelInput').addEventListener('change', leerExcel);
+        document.getElementById('evaluacionSel').addEventListener('change', () => {
+            if(datosGlobales.length > 0) procesarYMostrar(datosGlobales);
+        });
+        document.getElementById('exportBtn').addEventListener('click', exportarExcel);
+
+        function leerExcel(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const bstr = evt.target.result;
+                const wb = XLSX.read(bstr, {type: 'binary'});
+                datosGlobales = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: "A"});
+                procesarYMostrar(datosGlobales);
+                document.getElementById('dashboard').classList.remove('hidden');
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        function procesarYMostrar(data) {
+            const colEval = document.getElementById('evaluacionSel').value;
+            const alumnos = {};
+            alumnosRiesgo = [];
+
+            data.forEach((fila, i) => {
+                if (i < 1 || !fila.E) return; // Salta cabeceras o filas vacías
+
+                const nombreC = `${fila.E} ${fila.F}, ${fila.G}`;
+                const grupo = fila.N || "S/G";
+                const etapa = fila.K || "S/E";
+                
+                let notaRaw = (colEval === 'FINAL') ? (fila.AB || fila.Z) : fila[colEval];
+                const nota = parseFloat(String(notaRaw).replace(',', '.'));
+
+                if (!alumnos[nombreC]) {
+                    alumnos[nombreC] = { nombre: nombreC, grupo, etapa, suspensos: 0 };
+                }
+                if (!isNaN(nota) && nota < 5) alumnos[nombreC].suspensos++;
+            });
+
+            const estadisticas = {};
+            Object.values(alumnos).forEach(a => {
+                if (!estadisticas[a.grupo]) {
+                    estadisticas[a.grupo] = { nombre: a.grupo, etapa: a.etapa, r0:0, r12:0, r34:0, r5p:0, total:0 };
+                }
+                const est = estadisticas[a.grupo];
+                est.total++;
+                if (a.suspensos === 0) est.r0++;
+                else if (a.suspensos <= 2) est.r12++;
+                else if (a.suspensos <= 4) est.r34++;
+                else {
+                    est.r5p++;
+                    alumnosRiesgo.push({ "Alumno/a": a.nombre, "Grupo": a.grupo, "Etapa": a.etapa, "Suspensos": a.suspensos });
+                }
+            });
+
+            resultadosResumen = Object.values(estadisticas);
+            renderizarTodo(estadisticas);
+            document.getElementById('exportBtn').classList.remove('hidden');
+        }
+
+        function renderizarTodo(est) {
+            const container = document.getElementById('tablasResultados');
+            const labels = [];
+            const ds = { r0:[], r12:[], r34:[], r5p:[] };
+
+            let html = `<table class="min-w-full border-collapse shadow-sm">
+                <thead class="bg-slate-800 text-white text-xs uppercase">
+                    <tr>
+                        <th class="p-4 text-left">Unidad / Nivel</th>
+                        <th class="p-4 text-center">0 Susp.</th>
+                        <th class="p-4 text-center">1-2 Susp.</th>
+                        <th class="p-4 text-center">3-4 Susp.</th>
+                        <th class="p-4 text-center">5+ Susp.</th>
+                        <th class="p-4 text-center bg-slate-700 font-bold">Total Alum.</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white">`;
+
+            Object.values(est).sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(g => {
+                const p0 = ((g.r0/g.total)*100).toFixed(1);
+                const p12 = ((g.r12/g.total)*100).toFixed(1);
+                const p34 = ((g.r34/g.total)*100).toFixed(1);
+                const p5p = ((g.r5p/g.total)*100).toFixed(1);
+
+                html += `<tr class="border-b hover:bg-blue-50 transition-colors">
+                    <td class="p-4"><span class="font-bold text-gray-800">${g.nombre}</span><br><span class="text-[10px] text-gray-400 uppercase font-medium">${g.etapa}</span></td>
+                    <td class="text-center">${g.r0} <span class="text-blue-600 font-medium text-xs block">${p0}%</span></td>
+                    <td class="text-center">${g.r12} <span class="text-blue-600 font-medium text-xs block">${p12}%</span></td>
+                    <td class="text-center">${g.r34} <span class="text-blue-600 font-medium text-xs block">${p34}%</span></td>
+                    <td class="text-center">${g.r5p} <span class="text-blue-600 font-medium text-xs block">${p5p}%</span></td>
+                    <td class="text-center font-bold bg-slate-50 text-gray-600">${g.total}</td>
+                </tr>`;
+
+                labels.push(g.nombre);
+                ds.r0.push(p0); ds.r12.push(p12); ds.r34.push(p34); ds.r5p.push(p5p);
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+            actualizarGrafica(labels, ds);
+        }
+
+        function actualizarGrafica(labels, ds) {
+            const ctx = document.getElementById('graficaBarras').getContext('2d');
+            if (chartInstancia) chartInstancia.destroy();
+            chartInstancia = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '0 Susp.', data: ds.r0, backgroundColor: '#22c55e' },
+                        { label: '1-2 Susp.', data: ds.r12, backgroundColor: '#eab308' },
+                        { label: '3-4 Susp.', data: ds.r34, backgroundColor: '#f97316' },
+                        { label: '5+ Susp.', data: ds.r5p, backgroundColor: '#ef4444' }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { x: { stacked: true }, y: { stacked: true, max: 100, title: { display:true, text: 'Porcentaje (%)' } } },
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        function exportarExcel() {
+            const wb = XLSX.utils.book_new();
+            const resumen = resultadosResumen.map(g => ({
+                "Unidad": g.nombre, "Etapa": g.etapa, "0 Susp (N)": g.r0, "0 Susp (%)": ((g.r0/g.total)*100).toFixed(1)+"%",
+                "1-2 Susp (N)": g.r12, "1-2 Susp (%)": ((g.r12/g.total)*100).toFixed(1)+"%",
+                "3-4 Susp (N)": g.r34, "3-4 Susp (%)": ((g.r34/g.total)*100).toFixed(1)+"%",
+                "5+ Susp (N)": g.r5p, "5+ Susp (%)": ((g.r5p/g.total)*100).toFixed(1)+"%",
+                "Total Alumnos": g.total
+            }));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumen), "Estadísticas");
+            if(alumnosRiesgo.length > 0) {
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(alumnosRiesgo.sort((a,b)=>a.Grupo.localeCompare(b.Grupo))), "Alumnos Riesgo 5+");
+            }
+            XLSX.writeFile(wb, `Informe_Resultados_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+    </script>
+</body>
+</html>
