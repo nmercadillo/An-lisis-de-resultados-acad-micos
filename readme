@@ -1,30 +1,49 @@
-# 📊 Analizador de Resultados Académicos LOMLOE (Versión Multianual)
+# 📊 Analizador de Resultados Académicos LOMLOE
 
-Esta herramienta web está diseñada para que los centros educativos realicen un análisis estadístico avanzado de sus resultados académicos de forma **privada, offline y gratuita**. Permite visualizar el rendimiento por grupos, niveles y la evolución histórica comparada con los dos cursos anteriores.
+Esta es una herramienta web **completamente offline** diseñada para centros educativos. Permite procesar archivos Excel de resultados académicos para obtener estadísticas detalladas por grupo, nivel y evolución histórica (trienal).
 
-## ✨ Funciones Destacadas
+## 🚀 Características Principales
 
-- **Privacidad Absoluta:** Los datos se procesan localmente en el navegador mediante JavaScript. Nada se sube a internet.
-- **Gráficas Estilizadas:** Comparativas mediante barras apiladas con ancho controlado para una lectura profesional.
-- **Detección Inteligente de Diversificación:** Agrupa automáticamente al alumnado de Diversificación I en la sección de 3º ESO y Diversificación II en 4º ESO.
-- **Comparativa Histórica:** Cuadros de mando que comparan el % de éxito del nivel actual con los dos cursos precedentes.
-- **Exportación en Excel:** Genera un libro `.xlsx` editable con pestañas separadas por cada año académico analizado.
+* **Privacidad Total:** El procesamiento se realiza en el navegador mediante JavaScript (Librería `SheetJS`). Los datos de los alumnos **nunca se suben a ningún servidor**.
+* **Segmentación Inteligente:** * Clasifica automáticamente por niveles (ESO, Bachillerato, FPGB).
+    * Agrupa **1º y 2º de Diversificación** dentro de 3º y 4º de ESO respectivamente.
+* **Análisis Multidimensional:** * Desglose de suspensos: 0, 1-2, 3-4 y 5 o más.
+    * Cálculo automático de porcentajes y números absolutos.
+    * Gráficas de barras comparativas entre grupos del mismo nivel.
+* **Evolución Histórica:** Comparativa automática con los dos años anteriores si se aportan los archivos correspondientes.
+* **Exportación:** Generación de informes editables en formato `.xlsx`.
 
-## 📋 Preparación de los Archivos Excel
+## 📂 Estructura del Excel Requerido
 
-Para que la aplicación funcione correctamente, debes exportar tus datos en archivos Excel (.xlsx) y seguir estas pautas:
+Para que la aplicación funcione correctamente, el archivo Excel debe mantener las siguientes columnas:
 
-### 1. Nomenclatura de Archivos
-La aplicación usa el nombre del archivo para generar las etiquetas de la comparativa histórica. Se recomienda usar este formato:
-- `2023-2024.xlsx`
-- `2024-2025.xlsx`
-- `2025-2026.xlsx`
-
-### 2. Estructura de Columnas
-El sistema busca la información en las siguientes posiciones:
-
-| Columna | Datos Requeridos |
+| Columna | Información |
 | :--- | :--- |
-| **E, F, G** | Apellidos y Nombre del alumno/a |
-| **K** | **Etapa/Nivel:** (Ej: 1º de E.S.O., 1º Diversificación, etc.) |
-| **N** | **Unidad / Grupo:** (Ej: 1º ESO A, I
+| **E, F, G** | Apellido1, Apellido2 y Nombre |
+| **K** | Etapa (ESO, Bachillerato, etc.) |
+| **N** | Unidad / Grupo (1A, 2B, DIV1, etc.) |
+| **T** | Materia |
+| **W** | 1ª Evaluación |
+| **X** | 2ª Evaluación |
+| **Z** | Calificación Ordinaria (FP/Bach) |
+| **AA** | Calificación Extraordinaria |
+| **AB** | Calificación Final (ESO) |
+
+## 🛠️ Instalación y Uso
+
+1.  **En local:** Simplemente descarga el archivo `index.html` y ábrelo en cualquier navegador moderno (Chrome, Firefox, Edge).
+2.  **En GitHub Pages:**
+    * Sube el archivo `index.html` a un repositorio de GitHub.
+    * Ve a **Settings > Pages**.
+    * En "Build and deployment", selecciona la rama `main` y guarda.
+    * Accede a la URL proporcionada por GitHub.
+
+## 📈 Gráficas y Estilo
+
+La aplicación genera visualizaciones de rendimiento comparativas. Las gráficas muestran el balance de suspensos de cada grupo para identificar rápidamente áreas de mejora.
+
+
+
+## 📄 Licencia
+
+Este proyecto es de uso libre para centros educativos. Se recomienda su uso bajo las directrices de la normativa vigente de Protección de Datos (RGPD).
