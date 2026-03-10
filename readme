@@ -1,0 +1,47 @@
+# 📊 Analizador de Resultados Académicos (Offline)
+
+Esta herramienta permite a los centros educativos analizar los resultados académicos de su alumnado a partir de archivos Excel extraídos de plataformas de gestión educativa. 
+
+Está diseñada para ser **100% privada**: los datos no se envían a ningún servidor, todo el procesamiento ocurre localmente en el navegador del usuario.
+
+## ✨ Características principaless
+
+- **Privacidad Total:** Funciona en el lado del cliente (Client-side). Los nombres y notas de los alumnos nunca salen de tu ordenador.
+- **Análisis por Evaluación:** Permite seleccionar entre 1ª, 2ª, Ordinaria/Final y Extraordinaria.
+- **Detección de Riesgo:** Clasifica automáticamente al alumnado por número de suspensos (0, 1-2, 3-4, 5 o más).
+- **Gráficas Comparativas:** Genera una gráfica de barras apiladas para comparar el rendimiento entre grupos y niveles de un vistazo.
+- **Exportación Editable:** Descarga un informe en formato `.xlsx` con las estadísticas calculadas y una lista nominal de alumnos con 5 o más suspensos para el equipo de orientación.
+
+## 📋 Requisitos del archivo Excel
+
+Para que la aplicación funcione correctamente, el archivo Excel debe tener la información en las siguientes columnas:
+
+| Columna | Información |
+| :--- | :--- |
+| **E, F, G** | Apellidos y Nombre |
+| **K** | Etapa educativa |
+| **N** | Unidad / Grupo (ej: 1º ESO A) |
+| **T** | Materia |
+| **W** | Calificación 1ª Evaluación |
+| **X** | Calificación 2ª Evaluación |
+| **Z** | Calificación Ordinaria (Bach/FP) |
+| **AB** | Calificación Final (ESO) |
+| **AA** | Calificación Extraordinaria |
+
+## 🚀 Instalación y Uso
+
+1.  **Instalación:** No requiere. Solo sube el archivo `index.html` a un repositorio de GitHub y activa **GitHub Pages**.
+2.  **Uso:** - Abre la URL generada por GitHub Pages.
+    - Selecciona el tipo de evaluación que quieres analizar.
+    - Sube tu archivo Excel.
+    - Revisa las gráficas y tablas en pantalla.
+    - Haz clic en "Descargar Informe Editable" para obtener el resumen en Excel.
+
+## 🛠️ Tecnologías utilizadas
+
+- [SheetJS](https://sheetjs.com/) - Para la lectura y escritura de archivos Excel.
+- [Chart.js](https://www.chartjs.org/) - Para la visualización de datos.
+- [Tailwind CSS](https://tailwindcss.com/) - Para el diseño de la interfaz.
+
+---
+*Desarrollado para la gestión eficiente y privada de datos académicos.*
