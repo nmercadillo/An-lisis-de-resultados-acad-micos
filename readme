@@ -1,49 +1,51 @@
-# 📊 Analizador de Resultados Académicos LOMLOE
+# 📊 Analizador de Resultados Académicos LOMLOE (Offline)
 
-Esta es una herramienta web **completamente offline** diseñada para centros educativos. Permite procesar archivos Excel de resultados académicos para obtener estadísticas detalladas por grupo, nivel y evolución histórica (trienal).
+Esta herramienta permite a los centros educativos analizar los resultados académicos del alumnado de forma automática, visual y **100% privada**. Está diseñada para procesar archivos Excel exportados de plataformas de gestión educativa (como iPasen, Séneca, etc.) y generar comparativas por niveles y evolución histórica.
 
-## 🚀 Características Principales
+## 🛡️ Privacidad y Seguridad
+A diferencia de otras herramientas, este analizador funciona íntegramente en el **lado del cliente** (tu navegador). 
+- **Los datos no se suben a ningún servidor.**
+- El procesamiento se realiza en la memoria local de tu ordenador.
+- Una vez cerrada la pestaña, no queda rastro de la información procesada.
 
-* **Privacidad Total:** El procesamiento se realiza en el navegador mediante JavaScript (Librería `SheetJS`). Los datos de los alumnos **nunca se suben a ningún servidor**.
-* **Segmentación Inteligente:** * Clasifica automáticamente por niveles (ESO, Bachillerato, FPGB).
-    * Agrupa **1º y 2º de Diversificación** dentro de 3º y 4º de ESO respectivamente.
-* **Análisis Multidimensional:** * Desglose de suspensos: 0, 1-2, 3-4 y 5 o más.
-    * Cálculo automático de porcentajes y números absolutos.
-    * Gráficas de barras comparativas entre grupos del mismo nivel.
-* **Evolución Histórica:** Comparativa automática con los dos años anteriores si se aportan los archivos correspondientes.
-* **Exportación:** Generación de informes editables en formato `.xlsx`.
+## 🚀 Funcionalidades Principales
 
-## 📂 Estructura del Excel Requerido
+* **Segmentación Automática:** Clasifica por niveles (ESO, Bachillerato, FP Grado Básico).
+* **Gestión de Diversificación:** Integra automáticamente los grupos de 1º PDC/DIV en 3º de ESO y 2º PDC/DIV en 4º de ESO.
+* **Análisis de Suspensos:** Clasifica al alumnado en 4 rangos: 0, 1-2, 3-4 y 5 o más materias suspensas.
+* **Comparativa Trienal:** Al cargar archivos de años anteriores, genera tablas comparativas de rendimiento.
+* **Gráficos Interactivos:** Gráficas de barras estilizadas para comparar grupos dentro del mismo nivel.
+* **Exportación:** Genera un archivo `.xlsx` editable con los resultados tabulados.
 
-Para que la aplicación funcione correctamente, el archivo Excel debe mantener las siguientes columnas:
+## 📋 Requisitos del Archivo Excel
 
-| Columna | Información |
+Para que el análisis sea correcto, el archivo Excel debe tener la información en las siguientes columnas (mapeo estándar):
+
+| Columna | Datos |
 | :--- | :--- |
-| **E, F, G** | Apellido1, Apellido2 y Nombre |
-| **K** | Etapa (ESO, Bachillerato, etc.) |
-| **N** | Unidad / Grupo (1A, 2B, DIV1, etc.) |
+| **E, F, G** | Apellido 1, Apellido 2, Nombre |
+| **K** | Etapa Educativa |
+| **N** | Unidad / Grupo (Ej: 1A, 2B, DIV1...) |
 | **T** | Materia |
-| **W** | 1ª Evaluación |
-| **X** | 2ª Evaluación |
-| **Z** | Calificación Ordinaria (FP/Bach) |
-| **AA** | Calificación Extraordinaria |
-| **AB** | Calificación Final (ESO) |
+| **W / X** | 1ª Evaluación / 2ª Evaluación |
+| **Z / AB** | Ordinaria (Bach/FP) / Final (ESO) |
+| **AA** | Extraordinaria |
 
-## 🛠️ Instalación y Uso
+## ⚙️ Configuración en GitHub Pages
 
-1.  **En local:** Simplemente descarga el archivo `index.html` y ábrelo en cualquier navegador moderno (Chrome, Firefox, Edge).
-2.  **En GitHub Pages:**
-    * Sube el archivo `index.html` a un repositorio de GitHub.
-    * Ve a **Settings > Pages**.
-    * En "Build and deployment", selecciona la rama `main` y guarda.
-    * Accede a la URL proporcionada por GitHub.
+Si quieres alojar esta herramienta para que tu equipo pueda usarla desde una URL privada:
 
-## 📈 Gráficas y Estilo
+1.  Sube el archivo `index.html` a tu repositorio de GitHub.
+2.  Ve a la pestaña **Settings** (Configuración) de tu repositorio.
+3.  En el menú de la izquierda, selecciona **Pages**.
+4.  En la sección "Build and deployment", asegúrate de que esté seleccionada la rama `main` y la carpeta `/ (root)`.
+5.  Haz clic en **Save**. En unos minutos, tendrás una URL (ej: `https://usuario.github.io/repositorio/`) lista para usar.
 
-La aplicación genera visualizaciones de rendimiento comparativas. Las gráficas muestran el balance de suspensos de cada grupo para identificar rápidamente áreas de mejora.
+## 🛠️ Tecnologías Utilizadas
 
+* [SheetJS (XLSX)](https://sheetjs.com/) - Para la lectura y escritura de archivos Excel.
+* [Chart.js](https://www.chartjs.org/) - Para la generación de gráficas de rendimiento.
+* [Tailwind CSS](https://tailwindcss.com/) - Para el diseño de la interfaz.
 
-
-## 📄 Licencia
-
-Este proyecto es de uso libre para centros educativos. Se recomienda su uso bajo las directrices de la normativa vigente de Protección de Datos (RGPD).
+---
+**Nota:** Esta herramienta ha sido desarrollada para simplificar la burocracia docente y mejorar la toma de decisiones basada en datos reales de rendimiento.
