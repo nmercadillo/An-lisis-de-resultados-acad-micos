@@ -3,130 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analizador de Resultados Académicos</title>
+    <title>Analizador de Resultados Académicos LOMLOE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .chart-wrapper { max-width: 700px; margin: 0 auto; position: relative; height: 350px; }
+        .chart-container { position: relative; height: 250px; width: 450px; margin: auto; }
+        @media print { .no-print { display: none; } }
+        .nivel-card { page-break-after: always; border-bottom: 2px solid #e2e8f0; padding-bottom: 2rem; }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen pb-20">
-    <div class="max-w-6xl mx-auto pt-10 px-4">
-        <div class="bg-indigo-900 text-white p-8 rounded-t-2xl shadow-lg text-center">
-            <h1 class="text-3xl font-extrabold mb-2 text-white">📈 Analizador de Resultados LOMLOE</h1>
-            <p class="text-indigo-200">Comparativa por Grupos, Niveles e Histórico Multianual</p>
-        </div>
+<body class="bg-slate-50 min-h-screen p-4 md:p-8 text-slate-800">
 
-        <div class="bg-white p-6 shadow-md grid grid-cols-1 md:grid-cols-2 gap-8 border-b">
-            <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Evaluación seleccionada</label>
-                <select id="evalSel" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <option value="W">1ª Evaluación</option>
-                    <option value="X">2ª Evaluación</option>
-                    <option value="FINAL">Ordinaria / Final (Col. Z / AB)</option>
-                    <option value="AA">Extraordinaria (Col. AA)</option>
-                </select>
+    <div class="max-w-6xl mx-auto mb-8 no-print">
+        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-600">
+            <h1 class="text-3xl font-extrabold text-blue-900 mb-2 text-center">Analizador de Rendimiento Académico</h1>
+            <p class="text-center text-slate-500 mb-6 italic">Herramienta offline segura para gestión de centros</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <label class="block text-sm font-bold text-blue-700 mb-1">Año Actual (2025-2026):</label>
+                    <input type="file" id="fileCurrent" class="text-xs w-full" accept=".xlsx, .xls">
+                </div>
+                <div class="bg-slate-50 p-4 rounded-lg">
+                    <label class="block text-sm font-bold text-slate-600 mb-1">Año Anterior (2024-2025):</label>
+                    <input type="file" id="filePrev1" class="text-xs w-full" accept=".xlsx, .xls">
+                </div>
+                <div class="bg-slate-50 p-4 rounded-lg">
+                    <label class="block text-sm font-bold text-slate-600 mb-1">Año -2 (2023-2024):</label>
+                    <input type="file" id="filePrev2" class="text-xs w-full" accept=".xlsx, .xls">
+                </div>
             </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Cargar archivos (Actual + 2 anteriores)</label>
-                <input type="file" id="fileInput" multiple accept=".xlsx, .xls" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 cursor-pointer"/>
+
+            <div class="flex flex-wrap gap-4 justify-center items-end">
+                <div>
+                    <label class="block text-xs font-bold uppercase mb-1 text-slate-500">Evaluación</label>
+                    <select id="evalSelect" class="border-2 border-slate-200 p-2 rounded-lg focus:border-blue-500 outline-none transition-all">
+                        <option value="W">1ª Evaluación</option>
+                        <option value="X">2ª Evaluación</option>
+                        <option value="AB_Z">Ordinaria / Final</option>
+                        <option value="AA">Extraordinaria</option>
+                    </select>
+                </div>
+                <button onclick="processAll()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-8 rounded-lg shadow-md transition-all transform hover:scale-105">
+                    Analizar Datos
+                </button>
+                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-8 rounded-lg shadow-md transition-all">
+                    Exportar Excel (.xlsx)
+                </button>
             </div>
         </div>
+    </div>
 
-        <div class="bg-white p-4 flex justify-center border-b rounded-b-2xl shadow-md">
-            <button id="btnExport" class="hidden bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-8 rounded-full shadow transition-all transform hover:scale-105">
-                📥 Exportar Excel Editable
-            </button>
+    <div id="reportOutput" class="max-w-6xl mx-auto space-y-12">
+        <div class="text-center py-20 text-slate-400">
+            <p>Selecciona los archivos Excel para comenzar el desglose por niveles.</p>
         </div>
-
-        <div id="mainContainer" class="mt-10 space-y-16"></div>
     </div>
 
     <script>
-        // Configuración de Secciones con palabras clave mejoradas
-        const SECCIONES = [
-            { id: "1ESO", nombre: "1º de ESO", keys: ["1º de e.s.o", "1º eso", "1eso"] },
-            { id: "2ESO", nombre: "2º de ESO", keys: ["2º de e.s.o", "2º eso", "2eso"] },
-            { id: "3ESO", nombre: "3º de ESO (Inc. Diversificación)", keys: ["3º de e.s.o", "3º eso", "3eso", "1º de div", "1º div", "diversificación i"] },
-            { id: "4ESO", nombre: "4º de ESO (Inc. Diversificación)", keys: ["4º de e.s.o", "4º eso", "4eso", "2º de div", "2º div", "diversificación ii"] },
-            { id: "1FPB", nombre: "1º FP Grado Básico", keys: ["1º de form", "1º f.p.b", "1º fpb", "1 fpb"] },
-            { id: "2FPB", nombre: "2º FP Grado Básico", keys: ["2º de form", "2º f.p.b", "2º fpb", "2 fpb"] },
-            { id: "1BACH", nombre: "1º de Bachillerato", keys: ["1º de bach", "1 bach", "1º bach"] },
-            { id: "2BACH", nombre: "2º de Bachillerato", keys: ["2º de bach", "2 bach", "2º bach"] }
+        const NIVELES_ORDEN = [
+            "1º DE ESO", "2º DE ESO", "3º DE ESO", "4º DE ESO", 
+            "1º FP Grado Básico", "2º FP Grado Básico", 
+            "1º Bachillerato", "2º Bachillerato"
         ];
 
-        let datosAnuales = {};
-        let activeCharts = [];
+        let databaseGlobal = {}; 
 
-        document.getElementById('fileInput').addEventListener('change', async (e) => {
-            const files = Array.from(e.target.files);
-            if (!files.length) return;
+        async function processAll() {
+            const output = document.getElementById('reportOutput');
+            output.innerHTML = '<div class="text-center font-bold">Procesando datos...</div>';
             
-            datosAnuales = {};
-            const evalTipo = document.getElementById('evalSel').value;
-
-            for (const file of files) {
-                const curso = file.name.replace(/\.[^/.]+$/, "");
-                const raw = await leerExcel(file);
-                datosAnuales[curso] = analizarDatos(raw, evalTipo);
-            }
-            renderizar();
-        });
-
-        function leerExcel(file) {
-            return new Promise(res => {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    const wb = XLSX.read(e.target.result, {type: 'binary'});
-                    res(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 'A'}));
-                };
-                reader.readAsBinaryString(file);
-            });
-        }
-
-        function analizarDatos(rows, evalTipo) {
-            const alumnos = {};
-            rows.forEach((r, i) => {
-                if (i < 1 || !r.E) return;
-                const id = `${r.E}_${r.F}_${r.G}`;
-                let notaRaw = (evalTipo === 'FINAL') ? (r.AB || r.Z) : r[evalTipo];
-                let nota = parseFloat(String(notaRaw).replace(',', '.'));
-
-                if (!alumnos[id]) alumnos[id] = { grupo: r.N, etapa: String(r.K).toLowerCase(), suspensos: 0 };
-                if (!isNaN(nota) && nota < 5) alumnos[id].suspensos++;
-            });
-
-            const res = {};
-            SECCIONES.forEach(s => res[s.id] = { nombre: s.nombre, grupos: {}, total: {r0:0, r12:0, r34:0, r5p:0, t:0} });
-
-            Object.values(alumnos).forEach(a => {
-                const sec = SECCIONES.find(s => s.keys.some(k => a.etapa.includes(k)));
-                if (sec) {
-                    const sData = res[sec.id];
-                    if (!sData.grupos[a.grupo]) sData.grupos[a.grupo] = {r0:0, r12:0, r34:0, r5p:0, t:0};
-                    const cat = a.suspensos === 0 ? 'r0' : a.suspensos <= 2 ? 'r12' : a.suspensos <= 4 ? 'r34' : 'r5p';
-                    sData.grupos[a.grupo][cat]++; sData.grupos[a.grupo].t++;
-                    sData.total[cat]++; sData.total.t++;
-                }
-            });
-            return res;
-        }
-
-        function renderizar() {
-            const container = document.getElementById('mainContainer');
-            container.innerHTML = "";
-            activeCharts.forEach(c => c.destroy());
-            
-            const cursos = Object.keys(datosAnuales).sort().reverse();
-            const cursoActual = cursos[0];
-
-            SECCIONES.forEach(sec => {
-                const dActual = datosAnuales[cursoActual][sec.id];
-                if (dActual.total.t === 0) return;
-
-                const card = document.createElement('div');
-                card.className = "bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100";
-                
-                let html = `
-                    <div class="bg-indigo-50 px-8 py-4 border-b border-indigo-1
+            const evalCol = document.getElementById('evalSelect').value;
+            const files = {
+                'current': document.getElementById('fileCurrent').files[0],
+                'prev1': document.getElementById('filePrev1').files[0],
+                'prev2': document.getElementById('filePrev2').files[0]
+            };
