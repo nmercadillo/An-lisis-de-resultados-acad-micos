@@ -1,57 +1,329 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Analizador de Resultados Académicos</title>
-
-<script src="libs/xlsx.full.min.js"></script>
-<script src="libs/chart.umd.min.js"></script>
-<script src="libs/FileSaver.min.js"></script>
-
-<link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizador LOMLOE v3.0 (Carga Segura)</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .chart-container { position: relative; height: 280px; width: 100%; max-width: 500px; margin: auto; }
+        @media print { .no-print { display: none; } }
+        .nivel-card { page-break-after: always; border-bottom: 2px solid #e2e8f0; padding-bottom: 2rem; margin-bottom: 2rem; }
+    </style>
 </head>
+<body class="bg-slate-100 min-h-screen p-4 md:p-8 text-slate-800 font-sans">
 
-<body>
+    <div class="max-w-6xl mx-auto mb-8 no-print">
+        <div class="bg-white p-6 rounded-2xl shadow-xl border-t-8 border-blue-700">
+            <h1 class="text-3xl font-black text-blue-900 mb-4 text-center tracking-tight">Analizador Académico LOMLOE</h1>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                    <label class="block text-xs font-black text-blue-800 uppercase mb-2 italic">1. Archivo Actual (2025-26):</label>
+                    <input type="file" id="fileCurrent" class="text-xs w-full cursor-pointer" accept=".xlsx, .xls">
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-300">
+                    <label class="block text-xs font-black text-slate-600 uppercase mb-2 italic">2. Año Anterior (-1):</label>
+                    <input type="file" id="filePrev1" class="text-xs w-full cursor-pointer" accept=".xlsx, .xls">
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-300">
+                    <label class="block text-xs font-black text-slate-600 uppercase mb-2 italic">3. Año Anteanterior (-2):</label>
+                    <input type="file" id="filePrev2" class="text-xs w-full cursor-pointer" accept=".xlsx, .xls">
+                </div>
+            </div>
 
-<h1>Analizador de resultados académicos</h1>
+            <div class="flex flex-wrap gap-4 justify-center items-end bg-slate-100 p-4 rounded-xl">
+                <div>
+                    <label class="block text-[10px] font-bold uppercase mb-1 text-slate-500">Seleccionar Evaluación</label>
+                    <select id="evalSelect" class="bg-white border-2 border-blue-200 p-2 rounded-lg font-bold text-blue-900 outline-none focus:border-blue-600">
+                        <option value="W">1ª Evaluación (Col. W)</option>
+                        <option value="X">2ª Evaluación (Col. X)</option>
+                        <option value="AB_Z">Final / Ordinaria (Col. AB/Z)</option>
+                        <option value="AA">Extraordinaria (Col. AA)</option>
+                    </select>
+                </div>
+                <button id="btnAnalyze" class="bg-blue-700 hover:bg-blue-900 text-white font-black py-3 px-10 rounded-lg shadow-lg transition-all active:scale-95">
+                    ANALIZAR DATOS
+                </button>
+                <button id="btnExport" class="bg-emerald-600 hover:bg-emerald-800 text-white font-black py-3 px-10 rounded-lg shadow-lg transition-all">
+                    EXPORTAR EXCEL
+                </button>
+            </div>
+        </div>
+    </div>
 
-<div class="panel">
+    <div id="reportOutput" class="max-w-6xl mx-auto space-y-12 pb-20">
+        <div class="bg-white p-12 rounded-2xl shadow-inner text-center text-slate-400 border-2 border-dashed border-slate-300 font-medium">
+            <p>Los datos aparecerán aquí tras pulsar el botón "Analizar Datos".</p>
+            <p class="text-xs mt-2 uppercase">Asegúrate de que el archivo .xls tenga las columnas E a AB con datos.</p>
+        </div>
+    </div>
 
-<h2>Archivos Excel</h2>
+    <script>
+        const NIVELES_ORDEN = [
+            "1º DE ESO", "2º DE ESO", "3º DE ESO", "4º DE ESO", 
+            "1º FP Grado Básico", "2º FP Grado Básico", 
+            "1º Bachillerato", "2º Bachillerato"
+        ];
 
-<label>Año actual</label>
-<input type="file" id="year0">
+        let databaseGlobal = {}; 
 
-<label>Año anterior</label>
-<input type="file" id="year1">
+        document.getElementById('btnAnalyze').onclick = processAll;
+        document.getElementById('btnExport').onclick = exportToExcel;
 
-<label>Hace dos años</label>
-<input type="file" id="year2">
+        async function processAll() {
+            const output = document.getElementById('reportOutput');
+            const evalCol = document.getElementById('evalSelect').value;
+            const inputs = {
+                'Actual': document.getElementById('fileCurrent').files[0],
+                'Anterior_1': document.getElementById('filePrev1').files[0],
+                'Anterior_2': document.getElementById('filePrev2').files[0]
+            };
 
-<h2>Evaluación</h2>
+            if(!inputs.Actual) {
+                alert("Error: Es obligatorio cargar al menos el archivo del año actual.");
+                return;
+            }
 
-<select id="evaluation">
-<option value="W">Primera evaluación</option>
-<option value="X">Segunda evaluación</option>
-<option value="Z">Ordinaria</option>
-<option value="AB">Final (ESO)</option>
-<option value="AA">Extraordinaria</option>
-</select>
+            output.innerHTML = '<div class="text-center p-20 font-black text-blue-900 animate-pulse text-2xl">PROCESANDO DATOS BINARIOS...</div>';
 
-<button onclick="procesar()">Analizar datos</button>
+            try {
+                databaseGlobal = {};
+                for (let label in inputs) {
+                    if (inputs[label]) {
+                        console.log("Leyendo archivo:", label);
+                        const rawData = await readExcel(inputs[label]);
+                        databaseGlobal[label] = analyzeRows(rawData, evalCol);
+                    }
+                }
+                
+                if (Object.keys(databaseGlobal['Actual']).length === 0) {
+                    throw new Error("No se detectaron alumnos o datos válidos en las columnas indicadas.");
+                }
 
-</div>
+                renderReport();
+            } catch (e) {
+                console.error("Error detallado:", e);
+                output.innerHTML = `
+                    <div class="bg-red-50 border-2 border-red-200 p-8 rounded-xl text-red-700">
+                        <h3 class="font-black text-xl mb-2 uppercase">Error detectado</h3>
+                        <p class="font-medium">${e.message}</p>
+                        <p class="text-xs mt-4 bg-red-100 p-2 rounded">Revisa que las columnas (E, F, G, K, N, T, W, X, Z, AA, AB) tengan los nombres y formatos correctos.</p>
+                    </div>`;
+            }
+        }
 
-<div class="panel">
+        function readExcel(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        // Usamos raw: false para que SheetJS intente formatear números automáticamente
+                        const json = XLSX.utils.sheet_to_json(firstSheet, { header: "A", defval: "", blankrows: false });
+                        resolve(json);
+                    } catch (err) { reject(err); }
+                };
+                reader.onerror = () => reject(new Error("No se pudo leer el archivo físico."));
+                reader.readAsArrayBuffer(file);
+            });
+        }
 
-<button onclick="exportarExcel()">Exportar resultados a Excel</button>
+        function analyzeRows(rows, evalCol) {
+            let alumnos = {};
+            
+            // Empezamos desde la fila 0 pero validamos si hay datos reales
+            rows.forEach((row) => {
+                // Validación: La columna E debe tener contenido (Apellido) para considerar que es una fila de alumno
+                if (!row.E || row.E === "Apellido1" || row.E === "APELLIDO1") return;
 
-</div>
+                const id = `${row.E} ${row.F} ${row.G}`.trim();
+                const unidad = String(row.N || "S/G").trim();
+                const etapa = String(row.K || "").trim();
+                const nivel = mapToNivel(etapa, unidad);
 
-<div id="resultados"></div>
+                if (!alumnos[id]) {
+                    alumnos[id] = { unidad, nivel, suspensos: 0 };
+                }
 
-<script src="app.js"></script>
-<script src="export.js"></script>
+                let notaRaw = "";
+                if (evalCol === 'AB_Z') {
+                    // Prioridad AB (Final ESO), si no Z (Ordinaria Bach/FP)
+                    notaRaw = (row.AB !== undefined && row.AB !== "") ? row.AB : (row.Z || "");
+                } else {
+                    notaRaw = row[evalCol] || "";
+                }
 
+                // Limpieza de nota (manejo de comas y strings)
+                const notaStr = String(notaRaw).replace(',', '.').trim();
+                const nota = parseFloat(notaStr);
+
+                // Solo contamos si es un número válido y menor a 5
+                if (!isNaN(nota) && nota < 5) {
+                    alumnos[id].suspensos++;
+                }
+            });
+
+            // Agrupación estadística
+            let stats = {};
+            for (let id in alumnos) {
+                const a = alumnos[id];
+                if (!stats[a.nivel]) {
+                    stats[a.nivel] = { grupos: {}, totalNivel: { '0':0, '1-2':0, '3-4':0, '5+':0, total:0 } };
+                }
+                if (!stats[a.nivel].grupos[a.unidad]) {
+                    stats[a.nivel].grupos[a.unidad] = { '0':0, '1-2':0, '3-4':0, '5+':0, total:0 };
+                }
+
+                const s = a.suspensos;
+                const r = s === 0 ? '0' : (s <= 2 ? '1-2' : (s <= 4 ? '3-4' : '5+'));
+                
+                stats[a.nivel].grupos[a.unidad][r]++;
+                stats[a.nivel].grupos[a.unidad].total++;
+                stats[a.nivel].totalNivel[r]++;
+                stats[a.nivel].totalNivel.total++;
+            }
+            return stats;
+        }
+
+        function mapToNivel(etapa, unidad) {
+            const u = unidad.toUpperCase();
+            const e = etapa.toUpperCase();
+            if (e.includes("ESO")) {
+                if (u.includes("1º") || u.includes("1ESO")) return "1º DE ESO";
+                if (u.includes("2º") || u.includes("2ESO")) return "2º DE ESO";
+                if (u.includes("3º") || u.includes("3ESO") || u.includes("DIV1") || u.includes("PDC1")) return "3º DE ESO";
+                if (u.includes("4º") || u.includes("4ESO") || u.includes("DIV2") || u.includes("PDC2")) return "4º DE ESO";
+            }
+            if (e.includes("BÁSICO") || e.includes("FPB")) {
+                return (u.includes("1º") || u.includes("1FPB")) ? "1º FP Grado Básico" : "2º FP Grado Básico";
+            }
+            if (e.includes("BACH")) {
+                return (u.includes("1º") || u.includes("1BCH")) ? "1º Bachillerato" : "2º Bachillerato";
+            }
+            return "OTROS";
+        }
+
+        function renderReport() {
+            const output = document.getElementById('reportOutput');
+            output.innerHTML = "";
+            const current = databaseGlobal['Actual'];
+
+            NIVELES_ORDEN.forEach(nivel => {
+                if (!current[nivel]) return;
+
+                const card = document.createElement('div');
+                card.className = "nivel-card bg-white p-8 rounded-2xl shadow-lg border border-slate-200";
+                
+                let html = `<h2 class="text-3xl font-black text-blue-800 mb-8 border-b-4 border-blue-50 pb-4 tracking-tighter uppercase">${nivel}</h2>`;
+                
+                html += `<div class="grid lg:grid-cols-2 gap-12 items-start">
+                    <div>
+                        <h3 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest italic text-center lg:text-left">Resultados por Unidad</h3>
+                        <table class="w-full text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-blue-900 text-white">
+                                    <th class="p-3 text-left rounded-tl-lg">GRUPO</th>
+                                    <th class="p-3 text-center">0 SUSP.</th>
+                                    <th class="p-3 text-center">1-2 SUSP.</th>
+                                    <th class="p-3 text-center">3-4 SUSP.</th>
+                                    <th class="p-3 text-center rounded-tr-lg">5+ SUSP.</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+
+                const grupos = current[nivel].grupos;
+                // Ordenar grupos alfabéticamente
+                Object.keys(grupos).sort().forEach(g => {
+                    const r = grupos[g];
+                    html += `<tr class="border-b hover:bg-slate-50 transition-colors">
+                        <td class="p-3 font-black text-blue-900 bg-slate-50">${g}</td>
+                        <td class="p-3 text-center font-bold">${r['0']} <span class="text-[10px] block text-blue-600">${Math.round(r['0']/r.total*100)}%</span></td>
+                        <td class="p-3 text-center font-bold">${r['1-2']} <span class="text-[10px] block text-slate-500">${Math.round(r['1-2']/r.total*100)}%</span></td>
+                        <td class="p-3 text-center font-bold">${r['3-4']} <span class="text-[10px] block text-slate-500">${Math.round(r['3-4']/r.total*100)}%</span></td>
+                        <td class="p-3 text-center font-bold">${r['5+']} <span class="text-[10px] block text-red-500">${Math.round(r['5+']/r.total*100)}%</span></td>
+                    </tr>`;
+                });
+
+                html += `</tbody></table></div>
+                        <div class="chart-container"><canvas id="canvas-${nivel.replace(/\s/g, '')}"></canvas></div>
+                </div>`;
+
+                // Resumen nivel + Histórico
+                const t = current[nivel].totalNivel;
+                html += `<div class="mt-10 bg-blue-50 rounded-xl p-6 border-2 border-blue-100">
+                    <p class="text-[10px] font-black text-blue-400 uppercase mb-4 text-center tracking-[0.2em]">Resumen total nivel y comparativa histórica</p>
+                    <table class="w-full text-[11px] text-center">
+                        <tr class="font-black text-slate-500 bg-white shadow-sm italic">
+                            <td class="p-2 border">AÑO ACADÉMICO</td><td>0 SUSP %</td><td>1-2 %</td><td>3-4 %</td><td>5+ %</td><td>TOTAL ALUMNOS</td>
+                        </tr>`;
+                
+                for(let year in databaseGlobal) {
+                    if(databaseGlobal[year][nivel]) {
+                        const h = databaseGlobal[year][nivel].totalNivel;
+                        const isCurrent = (year === 'Actual');
+                        html += `<tr class="${isCurrent ? 'font-black text-blue-900' : 'text-slate-400'} border-b">
+                            <td class="p-3 uppercase italic">${year}</td>
+                            <td>${Math.round(h['0']/h.total*100)}%</td>
+                            <td>${Math.round(h['1-2']/h.total*100)}%</td>
+                            <td>${Math.round(h['3-4']/h.total*100)}%</td>
+                            <td>${Math.round(h['5+']/h.total*100)}%</td>
+                            <td>${h.total}</td>
+                        </tr>`;
+                    }
+                }
+                html += `</table></div>`;
+
+                card.innerHTML = html;
+                output.appendChild(card);
+                createChart(`canvas-${nivel.replace(/\s/g, '')}`, grupos);
+            });
+        }
+
+        function createChart(canvasId, grupos) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const labels = Object.keys(grupos).sort();
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: '0 Susp', data: labels.map(g => grupos[g]['0']), backgroundColor: '#1e3a8a', borderRadius: 4 },
+                        { label: '1-2', data: labels.map(g => grupos[g]['1-2']), backgroundColor: '#3b82f6', borderRadius: 4 },
+                        { label: '3-4', data: labels.map(g => grupos[g]['3-4']), backgroundColor: '#93c5fd', borderRadius: 4 },
+                        { label: '5+', data: labels.map(g => grupos[g]['5+']), backgroundColor: '#cbd5e1', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 10, weight: 'bold' } } } },
+                    scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }
+                }
+            });
+        }
+
+        function exportToExcel() {
+            if (!databaseGlobal['Actual']) return alert("Analiza datos primero.");
+            const wb = XLSX.utils.book_new();
+            for (let nivel in databaseGlobal['Actual']) {
+                const data = databaseGlobal['Actual'][nivel].grupos;
+                const rows = [
+                    ["INFORME DE RENDIMIENTO - " + nivel],
+                    ["Unidad", "0 Susp", "% 0", "1-2 Susp", "% 1-2", "3-4 Susp", "% 3-4", "5+ Susp", "% 5+", "Total Alumnos"]
+                ];
+                Object.keys(data).sort().forEach(g => {
+                    const r = data[g];
+                    rows.push([g, r['0'], Math.round(r['0']/r.total*100)+"%", r['1-2'], Math.round(r['1-2']/r.total*100)+"%", r['3-4'], Math.round(r['3-4']/r.total*100)+"%", r['5+'], Math.round(r['5+']/r.total*100)+"%", r.total]);
+                });
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), nivel.substring(0,31));
+            }
+            XLSX.writeFile(wb, "Informe_Editable_LOMLOE.xlsx");
+        }
+    </script>
 </body>
 </html>
