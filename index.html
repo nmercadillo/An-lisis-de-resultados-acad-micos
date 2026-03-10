@@ -3,202 +3,234 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analizador Académico - Centro Educativo</title>
+    <title>Analizador Académico Multianual</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-100 min-h-screen p-4 md:p-8">
-
-    <div class="max-w-6xl mx-auto bg-white shadow-2xl rounded-2xl overflow-hidden">
-        <div class="bg-blue-700 p-6 text-white">
-            <h1 class="text-3xl font-bold">📊 Analizador de Resultados Académicos</h1>
-            <p class="opacity-80">Procesamiento local y privado de datos escolares</p>
-        </div>
-
-        <div class="p-6 border-b bg-slate-50 grid grid-cols-1 md:grid-cols-2 gap-6">
+<body class="bg-gray-100 min-h-screen p-4">
+    <div class="max-w-7xl mx-auto bg-white shadow-xl rounded-lg p-6">
+        <h1 class="text-3xl font-bold text-blue-900 mb-4 text-center">📊 Analizador de Resultados LOMLOE</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 bg-blue-50 p-6 rounded-lg border border-blue-200">
             <div>
-                <label class="block text-sm font-bold text-gray-700 mb-2 uppercase text-xs tracking-wider">1. Cargar Archivo Excel</label>
-                <input type="file" id="excelInput" accept=".xlsx, .xls" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition-all cursor-pointer"/>
-            </div>
-            <div>
-                <label class="block text-sm font-bold text-gray-700 mb-2 uppercase text-xs tracking-wider">2. Selección de Evaluación</label>
-                <select id="evaluacionSel" class="w-full p-2.5 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
-                    <option value="W">1ª Evaluación (Col. W)</option>
-                    <option value="X">2ª Evaluación (Col. X)</option>
-                    <option value="FINAL">Ordinaria / Final (Col. Z / AB)</option>
-                    <option value="AA">Extraordinaria (Col. AA)</option>
+                <label class="block font-bold mb-2">1. Evaluación a consultar:</label>
+                <select id="evalSel" class="w-full p-2 border rounded">
+                    <option value="W">1ª Evaluación (Col W)</option>
+                    <option value="X">2ª Evaluación (Col X)</option>
+                    <option value="FINAL">Ordinaria / Final (Col Z / AB)</option>
+                    <option value="AA">Extraordinaria (Col AA)</option>
                 </select>
             </div>
+            <div>
+                <label class="block font-bold mb-2">2. Cargar Excels (Selecciona los 3 archivos a la vez):</label>
+                <input type="file" id="fileInput" multiple accept=".xlsx, .xls" class="w-full p-1 bg-white border rounded">
+                <p class="text-xs text-gray-500 mt-1 italic">Nota: Los archivos deben llamarse como el curso (ej: 2024-2025.xlsx)</p>
+            </div>
         </div>
 
-        <div class="px-6 py-4 flex justify-end bg-white">
-            <button id="exportBtn" class="hidden bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all flex items-center gap-2">
-                📥 Descargar Informe Editable (.xlsx)
+        <div class="flex justify-end mb-6">
+            <button id="btnExport" class="hidden bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded shadow-lg transition-all">
+                📥 Exportar Informe Editable (.xlsx)
             </button>
         </div>
 
-        <div id="dashboard" class="hidden p-6 space-y-10">
-            <div class="bg-slate-50 p-4 rounded-xl border border-gray-200">
-                <h3 class="text-lg font-bold mb-4 text-gray-700 border-l-4 border-blue-600 pl-3">Comparativa de Rendimiento por Grupo (%)</h3>
-                <div class="h-[400px]">
-                    <canvas id="graficaBarras"></canvas>
-                </div>
-            </div>
-
-            <div class="overflow-x-auto">
-                <h3 class="text-lg font-bold mb-4 text-gray-700 border-l-4 border-green-600 pl-3">Tabla de Resultados Absolutos y Porcentajes</h3>
-                <div id="tablasResultados"></div>
-            </div>
-        </div>
+        <div id="mainContainer" class="space-y-12"></div>
     </div>
 
     <script>
-        let datosGlobales = [];
-        let chartInstancia = null;
-        let resultadosResumen = [];
-        let alumnosRiesgo = [];
+        const SECCIONES = [
+            { id: "1ESO", nombre: "1º de ESO", niveles: ["1º de ESO"] },
+            { id: "2ESO", nombre: "2º de ESO", niveles: ["2º de ESO"] },
+            { id: "3ESO", nombre: "3º de ESO", niveles: ["3º de ESO", "1º de Diversificación", "1º Diversificación"] },
+            { id: "4ESO", nombre: "4º de ESO", niveles: ["4º de ESO", "2º de Diversificación", "2º Diversificación"] },
+            { id: "1FPB", nombre: "1º FP Grado Básico", niveles: ["1º de Formación Profesional de Grado Básico", "1º FPB"] },
+            { id: "2FPB", nombre: "2º FP Grado Básico", niveles: ["2º de Formación Profesional de Grado Básico", "2º FPB"] },
+            { id: "1BACH", nombre: "1º de Bachillerato", niveles: ["1º de Bachillerato"] },
+            { id: "2BACH", nombre: "2º de Bachillerato", niveles: ["2º de Bachillerato"] }
+        ];
 
-        document.getElementById('excelInput').addEventListener('change', leerExcel);
-        document.getElementById('evaluacionSel').addEventListener('change', () => {
-            if(datosGlobales.length > 0) procesarYMostrar(datosGlobales);
-        });
-        document.getElementById('exportBtn').addEventListener('click', exportarExcel);
+        let datosAnuales = {}; // Estructura: { "2024-2025": { secciones... } }
+        let charts = [];
 
-        function leerExcel(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                const bstr = evt.target.result;
-                const wb = XLSX.read(bstr, {type: 'binary'});
-                datosGlobales = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: "A"});
-                procesarYMostrar(datosGlobales);
-                document.getElementById('dashboard').classList.remove('hidden');
-            };
-            reader.readAsBinaryString(file);
-        }
+        document.getElementById('fileInput').addEventListener('change', procesarArchivos);
+        document.getElementById('btnExport').addEventListener('click', exportarInforme);
 
-        function procesarYMostrar(data) {
-            const colEval = document.getElementById('evaluacionSel').value;
-            const alumnos = {};
-            alumnosRiesgo = [];
+        async function procesarArchivos(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
 
-            data.forEach((fila, i) => {
-                if (i < 1 || !fila.E) return; // Salta cabeceras o filas vacías
+            datosAnuales = {};
+            const evalTipo = document.getElementById('evalSel').value;
 
-                const nombreC = `${fila.E} ${fila.F}, ${fila.G}`;
-                const grupo = fila.N || "S/G";
-                const etapa = fila.K || "S/E";
-                
-                let notaRaw = (colEval === 'FINAL') ? (fila.AB || fila.Z) : fila[colEval];
-                const nota = parseFloat(String(notaRaw).replace(',', '.'));
-
-                if (!alumnos[nombreC]) {
-                    alumnos[nombreC] = { nombre: nombreC, grupo, etapa, suspensos: 0 };
-                }
-                if (!isNaN(nota) && nota < 5) alumnos[nombreC].suspensos++;
-            });
-
-            const estadisticas = {};
-            Object.values(alumnos).forEach(a => {
-                if (!estadisticas[a.grupo]) {
-                    estadisticas[a.grupo] = { nombre: a.grupo, etapa: a.etapa, r0:0, r12:0, r34:0, r5p:0, total:0 };
-                }
-                const est = estadisticas[a.grupo];
-                est.total++;
-                if (a.suspensos === 0) est.r0++;
-                else if (a.suspensos <= 2) est.r12++;
-                else if (a.suspensos <= 4) est.r34++;
-                else {
-                    est.r5p++;
-                    alumnosRiesgo.push({ "Alumno/a": a.nombre, "Grupo": a.grupo, "Etapa": a.etapa, "Suspensos": a.suspensos });
-                }
-            });
-
-            resultadosResumen = Object.values(estadisticas);
-            renderizarTodo(estadisticas);
-            document.getElementById('exportBtn').classList.remove('hidden');
-        }
-
-        function renderizarTodo(est) {
-            const container = document.getElementById('tablasResultados');
-            const labels = [];
-            const ds = { r0:[], r12:[], r34:[], r5p:[] };
-
-            let html = `<table class="min-w-full border-collapse shadow-sm">
-                <thead class="bg-slate-800 text-white text-xs uppercase">
-                    <tr>
-                        <th class="p-4 text-left">Unidad / Nivel</th>
-                        <th class="p-4 text-center">0 Susp.</th>
-                        <th class="p-4 text-center">1-2 Susp.</th>
-                        <th class="p-4 text-center">3-4 Susp.</th>
-                        <th class="p-4 text-center">5+ Susp.</th>
-                        <th class="p-4 text-center bg-slate-700 font-bold">Total Alum.</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white">`;
-
-            Object.values(est).sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(g => {
-                const p0 = ((g.r0/g.total)*100).toFixed(1);
-                const p12 = ((g.r12/g.total)*100).toFixed(1);
-                const p34 = ((g.r34/g.total)*100).toFixed(1);
-                const p5p = ((g.r5p/g.total)*100).toFixed(1);
-
-                html += `<tr class="border-b hover:bg-blue-50 transition-colors">
-                    <td class="p-4"><span class="font-bold text-gray-800">${g.nombre}</span><br><span class="text-[10px] text-gray-400 uppercase font-medium">${g.etapa}</span></td>
-                    <td class="text-center">${g.r0} <span class="text-blue-600 font-medium text-xs block">${p0}%</span></td>
-                    <td class="text-center">${g.r12} <span class="text-blue-600 font-medium text-xs block">${p12}%</span></td>
-                    <td class="text-center">${g.r34} <span class="text-blue-600 font-medium text-xs block">${p34}%</span></td>
-                    <td class="text-center">${g.r5p} <span class="text-blue-600 font-medium text-xs block">${p5p}%</span></td>
-                    <td class="text-center font-bold bg-slate-50 text-gray-600">${g.total}</td>
-                </tr>`;
-
-                labels.push(g.nombre);
-                ds.r0.push(p0); ds.r12.push(p12); ds.r34.push(p34); ds.r5p.push(p5p);
-            });
-
-            html += `</tbody></table>`;
-            container.innerHTML = html;
-            actualizarGrafica(labels, ds);
-        }
-
-        function actualizarGrafica(labels, ds) {
-            const ctx = document.getElementById('graficaBarras').getContext('2d');
-            if (chartInstancia) chartInstancia.destroy();
-            chartInstancia = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: '0 Susp.', data: ds.r0, backgroundColor: '#22c55e' },
-                        { label: '1-2 Susp.', data: ds.r12, backgroundColor: '#eab308' },
-                        { label: '3-4 Susp.', data: ds.r34, backgroundColor: '#f97316' },
-                        { label: '5+ Susp.', data: ds.r5p, backgroundColor: '#ef4444' }
-                    ]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    scales: { x: { stacked: true }, y: { stacked: true, max: 100, title: { display:true, text: 'Porcentaje (%)' } } },
-                    plugins: { legend: { position: 'bottom' } }
-                }
-            });
-        }
-
-        function exportarExcel() {
-            const wb = XLSX.utils.book_new();
-            const resumen = resultadosResumen.map(g => ({
-                "Unidad": g.nombre, "Etapa": g.etapa, "0 Susp (N)": g.r0, "0 Susp (%)": ((g.r0/g.total)*100).toFixed(1)+"%",
-                "1-2 Susp (N)": g.r12, "1-2 Susp (%)": ((g.r12/g.total)*100).toFixed(1)+"%",
-                "3-4 Susp (N)": g.r34, "3-4 Susp (%)": ((g.r34/g.total)*100).toFixed(1)+"%",
-                "5+ Susp (N)": g.r5p, "5+ Susp (%)": ((g.r5p/g.total)*100).toFixed(1)+"%",
-                "Total Alumnos": g.total
-            }));
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumen), "Estadísticas");
-            if(alumnosRiesgo.length > 0) {
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(alumnosRiesgo.sort((a,b)=>a.Grupo.localeCompare(b.Grupo))), "Alumnos Riesgo 5+");
+            for (const file of files) {
+                const nombreCurso = file.name.replace(/\.[^/.]+$/, "");
+                const data = await leerExcel(file);
+                datosAnuales[nombreCurso] = analizarDatos(data, evalTipo);
             }
-            XLSX.writeFile(wb, `Informe_Resultados_${new Date().toISOString().slice(0,10)}.xlsx`);
+
+            renderizarInterfaz();
+            document.getElementById('btnExport').classList.remove('hidden');
+        }
+
+        function leerExcel(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const wb = XLSX.read(e.target.result, { type: 'binary' });
+                    resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: "A" }));
+                };
+                reader.readAsBinaryString(file);
+            });
+        }
+
+        function analizarDatos(rows, evalTipo) {
+            const alumnos = {};
+            // Agrupar materias por alumno
+            rows.forEach((r, i) => {
+                if (i < 1 || !r.E) return;
+                const id = `${r.E}_${r.F}_${r.G}`;
+                const grupo = r.N;
+                const etapa = r.K; // Aquí se espera el nivel académico
+
+                let notaRaw = (evalTipo === 'FINAL') ? (r.AB || r.Z) : r[evalTipo];
+                let nota = parseFloat(String(notaRaw).replace(',', '.'));
+
+                if (!alumnos[id]) {
+                    alumnos[id] = { grupo, etapa, suspensos: 0 };
+                }
+                if (!isNaN(nota) && nota < 5) alumnos[id].suspensos++;
+            });
+
+            // Agrupar por Secciones (Lógica de Diversificación incluida)
+            const resultados = {};
+            SECCIONES.forEach(s => {
+                resultados[s.id] = { nombre: s.nombre, grupos: {}, total: { r0:0, r12:0, r34:0, r5p:0, t:0 } };
+            });
+
+            Object.values(alumnos).forEach(a => {
+                const seccion = SECCIONES.find(s => s.niveles.some(n => a.etapa && a.etapa.includes(n)));
+                if (seccion) {
+                    const sData = resultados[seccion.id];
+                    if (!sData.grupos[a.grupo]) sData.grupos[a.grupo] = { r0:0, r12:0, r34:0, r5p:0, t:0 };
+                    
+                    const g = sData.grupos[a.grupo];
+                    const t = sData.total;
+
+                    const categoria = a.suspensos === 0 ? 'r0' : a.suspensos <= 2 ? 'r12' : a.suspensos <= 4 ? 'r34' : 'r5p';
+                    
+                    g[categoria]++; g.t++;
+                    t[categoria]++; t.t++;
+                }
+            });
+            return resultados;
+        }
+
+        function renderizarInterfaz() {
+            const container = document.getElementById('mainContainer');
+            container.innerHTML = "";
+            charts.forEach(c => c.destroy());
+            charts = [];
+
+            const cursoActual = Object.keys(datosAnuales).sort().reverse()[0];
+            const cursosAnteriores = Object.keys(datosAnuales).sort().reverse().slice(1);
+
+            SECCIONES.forEach(sec => {
+                const dataActual = datosAnuales[cursoActual][sec.id];
+                if (dataActual.total.t === 0) return;
+
+                const sectionEl = document.createElement('section');
+                sectionEl.className = "bg-white border-2 border-gray-200 rounded-xl p-6 shadow-sm";
+                
+                // Título Sección
+                sectionEl.innerHTML = `<h2 class="text-2xl font-black text-blue-800 border-b-4 border-blue-200 pb-2 mb-6 uppercase">${sec.nombre}</h2>`;
+
+                // 1. Tabla por Grupos
+                let tablaGrupos = `<div class="mb-8 overflow-x-auto"><table class="w-full text-sm border text-center">
+                    <tr class="bg-gray-800 text-white font-bold text-xs uppercase">
+                        <th class="p-2 text-left">Grupo</th><th>0 Susp</th><th>1-2 Susp</th><th>3-4 Susp</th><th>5+ Susp</th><th class="bg-gray-700">Total</th>
+                    </tr>`;
+                
+                Object.entries(dataActual.grupos).forEach(([num, g]) => {
+                    tablaGrupos += `<tr>
+                        <td class="p-2 font-bold bg-gray-50 text-left">${num}</td>
+                        <td>${g.r0} <br><span class="text-blue-600 text-[10px]">${(g.r0/g.t*100).toFixed(1)}%</span></td>
+                        <td>${g.r12} <br><span class="text-blue-600 text-[10px]">${(g.r12/g.t*100).toFixed(1)}%</span></td>
+                        <td>${g.r34} <br><span class="text-blue-600 text-[10px]">${(g.r34/g.t*100).toFixed(1)}%</span></td>
+                        <td>${g.r5p} <br><span class="text-blue-600 text-[10px]">${(g.r5p/g.t*100).toFixed(1)}%</span></td>
+                        <td class="font-bold bg-gray-50">${g.t}</td>
+                    </tr>`;
+                });
+                tablaGrupos += `</table></div>`;
+                sectionEl.innerHTML += tablaGrupos;
+
+                // 2. Gráfica Comparativa Grupos
+                const canvasId = `chart-${sec.id}`;
+                sectionEl.innerHTML += `<div class="h-64 mb-10"><canvas id="${canvasId}"></canvas></div>`;
+
+                // 3. Comparativa Histórica
+                let histHtml = `<div class="bg-blue-50 p-4 rounded-lg"><h4 class="font-bold mb-3 text-blue-900 uppercase text-xs tracking-widest">Comparativa Histórica del Nivel</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">`;
+                
+                Object.keys(datosAnuales).sort().forEach(curso => {
+                    const d = datosAnuales[curso][sec.id].total;
+                    histHtml += `<div class="bg-white p-3 rounded border shadow-sm ${curso === cursoActual ? 'ring-2 ring-blue-400' : ''}">
+                        <p class="font-black text-center border-b mb-2 text-gray-700">${curso}</p>
+                        <div class="text-[11px] space-y-1">
+                            <div class="flex justify-between"><span>0 Susp:</span><b>${(d.r0/d.t*100 || 0).toFixed(1)}%</b></div>
+                            <div class="flex justify-between"><span>1-2 Susp:</span><b>${(d.r12/d.t*100 || 0).toFixed(1)}%</b></div>
+                            <div class="flex justify-between"><span>3-4 Susp:</span><b>${(d.r34/d.t*100 || 0).toFixed(1)}%</b></div>
+                            <div class="flex justify-between"><span>5+ Susp:</span><b>${(d.r5p/d.t*100 || 0).toFixed(1)}%</b></div>
+                            <div class="flex justify-between border-t mt-1 pt-1 font-bold"><span>Total Alumn:</span><span>${d.t}</span></div>
+                        </div>
+                    </div>`;
+                });
+                histHtml += `</div></div>`;
+                sectionEl.innerHTML += histHtml;
+
+                container.appendChild(sectionEl);
+                setTimeout(() => crearGrafica(canvasId, dataActual.grupos), 100);
+            });
+        }
+
+        function crearGrafica(id, grupos) {
+            const ctx = document.getElementById(id).getContext('2d');
+            const labels = Object.keys(grupos);
+            const datasets = [
+                { label: '0 Susp', data: labels.map(l => (grupos[l].r0/grupos[l].t*100).toFixed(1)), backgroundColor: '#22c55e' },
+                { label: '1-2 Susp', data: labels.map(l => (grupos[l].r12/grupos[l].t*100).toFixed(1)), backgroundColor: '#eab308' },
+                { label: '3-4 Susp', data: labels.map(l => (grupos[l].r34/grupos[l].t*100).toFixed(1)), backgroundColor: '#f97316' },
+                { label: '5+ Susp', data: labels.map(l => (grupos[l].r5p/grupos[l].t*100).toFixed(1)), backgroundColor: '#ef4444' }
+            ];
+
+            const c = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { x: { stacked: true }, y: { stacked: true, max: 100 } },
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
+                }
+            });
+            charts.push(c);
+        }
+
+        function exportarInforme() {
+            const wb = XLSX.utils.book_new();
+            Object.entries(datosAnuales).forEach(([curso, secciones]) => {
+                const rows = [];
+                Object.values(secciones).forEach(s => {
+                    if (s.total.t === 0) return;
+                    rows.push({ "Sección": s.nombre, "Grupo": "TOTAL NIVEL", "0 Susp %": (s.total.r0/s.total.t*100).toFixed(1), "1-2 %": (s.total.r12/s.total.t*100).toFixed(1), "3-4 %": (s.total.r34/s.total.t*100).toFixed(1), "5+ %": (s.total.r5p/s.total.t*100).toFixed(1), "Alumnos": s.total.t });
+                    Object.entries(s.grupos).forEach(([n, g]) => {
+                        rows.push({ "Sección": s.nombre, "Grupo": n, "0 Susp %": (g.r0/g.t*100).toFixed(1), "1-2 %": (g.r12/g.t*100).toFixed(1), "3-4 %": (g.r34/g.t*100).toFixed(1), "5+ %": (g.r5p/g.t*100).toFixed(1), "Alumnos": g.t });
+                    });
+                });
+                const ws = XLSX.utils.json_to_sheet(rows);
+                XLSX.utils.book_append_sheet(wb, ws, curso);
+            });
+            XLSX.writeFile(wb, `Informe_Editable_Academico.xlsx`);
         }
     </script>
 </body>
