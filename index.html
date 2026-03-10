@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analizador de Resultados Académicos LOMLOE</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .chart-container { position: relative; height: 250px; width: 450px; margin: auto; }
+        .chart-container { position: relative; height: 280px; width: 100%; max-width: 500px; margin: auto; }
         @media print { .no-print { display: none; } }
-        .nivel-card { page-break-after: always; border-bottom: 2px solid #e2e8f0; padding-bottom: 2rem; }
+        .nivel-card { page-break-after: always; border-bottom: 2px solid #e2e8f0; padding-bottom: 2rem; margin-bottom: 2rem; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen p-4 md:p-8 text-slate-800">
@@ -18,19 +18,18 @@
     <div class="max-w-6xl mx-auto mb-8 no-print">
         <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-600">
             <h1 class="text-3xl font-extrabold text-blue-900 mb-2 text-center">Analizador de Rendimiento Académico</h1>
-            <p class="text-center text-slate-500 mb-6 italic">Herramienta offline segura para gestión de centros</p>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div class="bg-blue-50 p-4 rounded-lg">
-                    <label class="block text-sm font-bold text-blue-700 mb-1">Año Actual (2025-2026):</label>
+                    <label class="block text-sm font-bold text-blue-700 mb-1">Año Actual:</label>
                     <input type="file" id="fileCurrent" class="text-xs w-full" accept=".xlsx, .xls">
                 </div>
                 <div class="bg-slate-50 p-4 rounded-lg">
-                    <label class="block text-sm font-bold text-slate-600 mb-1">Año Anterior (2024-2025):</label>
+                    <label class="block text-sm font-bold text-slate-600 mb-1">Año Anterior (-1):</label>
                     <input type="file" id="filePrev1" class="text-xs w-full" accept=".xlsx, .xls">
                 </div>
                 <div class="bg-slate-50 p-4 rounded-lg">
-                    <label class="block text-sm font-bold text-slate-600 mb-1">Año -2 (2023-2024):</label>
+                    <label class="block text-sm font-bold text-slate-600 mb-1">Año Anteanterior (-2):</label>
                     <input type="file" id="filePrev2" class="text-xs w-full" accept=".xlsx, .xls">
                 </div>
             </div>
@@ -38,17 +37,17 @@
             <div class="flex flex-wrap gap-4 justify-center items-end">
                 <div>
                     <label class="block text-xs font-bold uppercase mb-1 text-slate-500">Evaluación</label>
-                    <select id="evalSelect" class="border-2 border-slate-200 p-2 rounded-lg focus:border-blue-500 outline-none transition-all">
+                    <select id="evalSelect" class="border-2 border-slate-200 p-2 rounded-lg focus:border-blue-500 outline-none">
                         <option value="W">1ª Evaluación</option>
                         <option value="X">2ª Evaluación</option>
                         <option value="AB_Z">Ordinaria / Final</option>
                         <option value="AA">Extraordinaria</option>
                     </select>
                 </div>
-                <button onclick="processAll()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-8 rounded-lg shadow-md transition-all transform hover:scale-105">
+                <button id="btnAnalyze" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-8 rounded-lg shadow-md transition-all transform hover:scale-105">
                     Analizar Datos
                 </button>
-                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-8 rounded-lg shadow-md transition-all">
+                <button id="btnExport" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-8 rounded-lg shadow-md transition-all">
                     Exportar Excel (.xlsx)
                 </button>
             </div>
@@ -57,7 +56,7 @@
 
     <div id="reportOutput" class="max-w-6xl mx-auto space-y-12">
         <div class="text-center py-20 text-slate-400">
-            <p>Selecciona los archivos Excel para comenzar el desglose por niveles.</p>
+            <p>Carga los archivos y pulsa "Analizar Datos" para generar el informe.</p>
         </div>
     </div>
 
@@ -70,13 +69,26 @@
 
         let databaseGlobal = {}; 
 
+        // Registro de eventos para asegurar que funcionen
+        document.getElementById('btnAnalyze').addEventListener('click', processAll);
+        document.getElementById('btnExport').addEventListener('click', exportToExcel);
+
         async function processAll() {
             const output = document.getElementById('reportOutput');
-            output.innerHTML = '<div class="text-center font-bold">Procesando datos...</div>';
-            
             const evalCol = document.getElementById('evalSelect').value;
-            const files = {
-                'current': document.getElementById('fileCurrent').files[0],
-                'prev1': document.getElementById('filePrev1').files[0],
-                'prev2': document.getElementById('filePrev2').files[0]
+            const fileInputs = {
+                'Actual': document.getElementById('fileCurrent').files[0],
+                'Anterior_1': document.getElementById('filePrev1').files[0],
+                'Anterior_2': document.getElementById('filePrev2').files[0]
             };
+
+            if(!fileInputs.Actual) {
+                alert("Es obligatorio cargar el archivo del año actual.");
+                return;
+            }
+
+            output.innerHTML = '<div class="text-center text-xl font-bold p-10">Procesando archivos... por favor espera.</div>';
+            
+            try {
+                databaseGlobal = {};
+                for (let label in fileInputs)
