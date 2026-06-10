@@ -28,7 +28,7 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Archivos Excel (Varios para comparar)</label>
+                    <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Archivos Excel (Sube varios para comparar históricos)</label>
                     <input type="file" id="fileInput" accept=".xlsx, .xls" multiple class="w-full text-sm border p-1 rounded">
                 </div>
                 <div>
@@ -55,7 +55,7 @@
             "1º FP Básica (SC)", "2º FP Básica (SC)"
         ];
 
-        let globalReportData = []; // Guarda los datos procesados para poder exportarlos después
+        let globalReportData = []; 
 
         async function startAnalysis() {
             const files = document.getElementById('fileInput').files;
@@ -74,25 +74,29 @@
             btnExport.disabled = true;
             btnExport.classList.add('opacity-50', 'cursor-not-allowed');
 
-            globalReportData = [];
+            let rawDataList = [];
 
+            // 1. Leer y procesar individualmente cada archivo metiendo su nombre
             for (let file of files) {
                 try {
                     const workbook = await readExcel(file);
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const json = XLSX.utils.sheet_to_json(sheet, {header: "A"});
                     const processed = processData(json, evalType, file.name.split('.')[0]);
-                    globalReportData.push(processed);
+                    rawDataList.push(processed);
                 } catch (err) {
                     console.error("Error leyendo " + file.name, err);
                 }
             }
 
+            // 2. Ordenar de manera alfabética/numérica inversa para que el año más reciente sea el primero
+            rawDataList.sort((a, b) => b.curso.localeCompare(a.curso, undefined, {numeric: true, sensitivity: 'base'}));
+            globalReportData = rawDataList;
+
             status.innerText = "Generando gráficas y tablas...";
             render(globalReportData);
             status.innerText = "Informe generado con éxito.";
             
-            // Activar botón de exportar
             btnExport.disabled = false;
             btnExport.classList.remove('opacity-50', 'cursor-not-allowed');
         }
@@ -110,7 +114,7 @@
             let store = { curso: fileName, niveles: {} };
 
             rows.forEach((row, i) => {
-                if (i < 1 || !row.N) return; // Saltamos cabecera y filas vacías
+                if (i < 1 || !row.N) return; 
 
                 const unidad = String(row.N).toUpperCase();
                 const etapa = String(row.K || "").toUpperCase();
@@ -118,19 +122,13 @@
                 if (nivel === "OTROS") return;
 
                 let nota;
-                
-                // --- LÓGICA DE UNIFICACIÓN PARA FINAL / ORDINARIA ---
                 if (evalType === "Z_AB") {
                     if (nivel.includes("Bachillerato") || nivel.includes("FP Básica")) {
-                        // Para Bachillerato y FPB, se unifica buscando primero la Extraordinaria (AA)
-                        // Si no hay nota en AA (porque aprobó en ordinaria o no se presentó), recurre a la Ordinaria (Z o AB)
                         nota = parseFloat(row.AA) || parseFloat(row.Z) || parseFloat(row.AB);
                     } else {
-                        // Para la ESO y los Programas de Diversificación Curricular, la nota Final está en Z o AB
                         nota = parseFloat(row.Z) || parseFloat(row.AB);
                     }
                 } else {
-                    // Evaluaciones estándar (1ª, 2ª o Extraordinaria pura si se desea)
                     nota = parseFloat(row[evalType]);
                 }
 
@@ -146,15 +144,12 @@
         }
 
         function detectarNivel(etapa, unidad) {
-            // Regla prioritaria para FPB (Servicios Comerciales)
             if (unidad.includes("FPB1") || unidad.includes("SC1") || (etapa.includes("BÁSICA") && unidad.includes("1"))) return "1º FP Básica (SC)";
             if (unidad.includes("FPB2") || unidad.includes("SC2") || (etapa.includes("BÁSICA") && unidad.includes("2"))) return "2º FP Básica (SC)";
             
-            // Bachillerato
             if (unidad.includes("B1") || (etapa.includes("BACHILLERATO") && unidad.includes("1"))) return "1º Bachillerato";
             if (unidad.includes("B2") || (etapa.includes("BACHILLERATO") && unidad.includes("2"))) return "2º Bachillerato";
             
-            // ESO y Diversificación
             if (unidad.startsWith("1") || unidad.includes("I1")) return "1º ESO";
             if (unidad.startsWith("2") || unidad.includes("I2")) return "2º ESO";
             if (unidad.startsWith("3") || unidad.includes("I3") || unidad.includes("3P")) return "3º ESO (Incl. 1º DIV)";
@@ -185,103 +180,163 @@
             container.innerHTML = "";
 
             NIVELES_ORDEN.forEach(nivel => {
-                const tieneDatos = allData.some(d => d.niveles[nivel]);
-                if (!tieneDatos) return;
+                // Filtrar qué archivos tienen datos reales para este nivel específico
+                const cursosConDatos = allData.filter(d => d.niveles[nivel]);
+                if (cursosConDatos.length === 0) return;
 
                 const section = document.createElement('div');
-                section.className = "bg-white p-6 rounded-lg shadow border-l-4 border-blue-800";
+                section.className = "bg-white p-6 rounded-lg shadow border-l-4 border-blue-800 mb-8";
                 section.innerHTML = `<h2 class="text-xl font-bold text-blue-900 border-b pb-2 mb-4">${nivel}</h2>`;
 
-                allData.forEach(curso => {
-                    const nivelData = curso.niveles[nivel];
-                    if (!nivelData) return;
+                // --- CURSO ACTUAL (El primer archivo de la lista ordenada) ---
+                const cursoActual = cursosConDatos[0];
+                const nivelDataActual = cursoActual.niveles[nivel];
+                const statsActual = calculateStatistics(nivelDataActual);
+                
+                const gLabels = [], d0 = [], d12 = [], d34 = [], d5 = [];
+                let tableRows = "";
 
-                    const stats = calculateStatistics(nivelData);
-                    const gLabels = [], d0 = [], d12 = [], d34 = [], d5 = [];
-                    let tableRows = "";
+                Object.keys(statsActual).forEach(grupo => {
+                    const c = statsActual[grupo];
+                    gLabels.push(grupo);
+                    d0.push((c.n0 / c.total * 100).toFixed(1));
+                    d12.push((c.n12 / c.total * 100).toFixed(1));
+                    d34.push((c.n34 / c.total * 100).toFixed(1));
+                    d5.push((c.n5 / c.total * 100).toFixed(1));
 
-                    Object.keys(stats).forEach(grupo => {
-                        const c = stats[grupo];
-                        gLabels.push(grupo);
-                        d0.push((c.n0 / c.total * 100).toFixed(1));
-                        d12.push((c.n12 / c.total * 100).toFixed(1));
-                        d34.push((c.n34 / c.total * 100).toFixed(1));
-                        d5.push((c.n5 / c.total * 100).toFixed(1));
+                    tableRows += `<tr class="border-b hover:bg-gray-50 text-center text-xs">
+                        <td class="p-2 border text-left font-bold text-blue-700">${grupo}</td>
+                        <td class="p-2 border bg-green-50 text-green-800 font-medium">${c.n0} (${(c.n0/c.total*100).toFixed(0)}%)</td>
+                        <td class="p-2 border bg-yellow-50 text-yellow-800">${c.n12} (${(c.n12/c.total*100).toFixed(0)}%)</td>
+                        <td class="p-2 border bg-orange-50 text-orange-800">${c.n34} (${(c.n34/c.total*100).toFixed(0)}%)</td>
+                        <td class="p-2 border bg-red-50 text-red-800">${c.n5} (${(c.n5/c.total*100).toFixed(0)}%)</td>
+                        <td class="p-2 border font-bold bg-gray-100 text-gray-700">${c.total}</td>
+                    </tr>`;
+                });
 
-                        tableRows += `<tr class="border-b hover:bg-gray-50 text-center">
-                            <td class="p-2 border text-left font-bold text-blue-700">${grupo}</td>
-                            <td class="p-2 border">${c.n0} (${(c.n0/c.total*100).toFixed(0)}%)</td>
-                            <td class="p-2 border">${c.n12} (${(c.n12/c.total*100).toFixed(0)}%)</td>
-                            <td class="p-2 border">${c.n34} (${(c.n34/c.total*100).toFixed(0)}%)</td>
-                            <td class="p-2 border">${c.n5} (${(c.n5/c.total*100).toFixed(0)}%)</td>
-                            <td class="p-2 border font-bold bg-gray-50">${c.total}</td>
-                        </tr>`;
+                const canvasId = `chart-${Math.random().toString(36).substr(2, 9)}`;
+                
+                let sectionHTML = `
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-bold text-gray-700 uppercase text-xs tracking-wider">📊 Curso Actual: ${cursoActual.curso}</h3>
+                            <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Vista Detallada</span>
+                        </div>
+                        <div class="overflow-x-auto mb-4">
+                            <table class="w-full text-xs border border-collapse shadow-sm">
+                                <thead class="bg-blue-900 text-white">
+                                    <tr>
+                                        <th class="p-2 border text-left">Grupo</th>
+                                        <th class="p-2 border">0 Susp.</th>
+                                        <th class="p-2 border">1-2 Susp.</th>
+                                        <th class="p-2 border">3-4 Susp.</th>
+                                        <th class="p-2 border">5 o más</th>
+                                        <th class="p-2 border">Total Alumnos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${tableRows}</tbody>
+                            </table>
+                        </div>
+                        <div class="h-44 w-full bg-gray-50 p-2 rounded border mb-6"><canvas id="${canvasId}"></canvas></div>
+                    </div>`;
+
+                // --- HISTÓRICO / AÑOS ANTERIORES (Filas de resumen compactas) ---
+                const añosAnteriores = cursosConDatos.slice(1);
+                if (añosAnteriores.length > 0) {
+                    sectionHTML += `
+                        <div class="mt-4 pt-4 border-t border-gray-200 bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-gray-500 uppercase text-[11px] tracking-wider mb-2">📚 Histórico comparativo (Años anteriores)</h4>
+                            <div class="space-y-2">`;
+                    
+                    añosAnteriores.forEach(cursoAnt => {
+                        const nivelDataAnt = cursoAnt.niveles[nivel];
+                        const statsAnt = calculateStatistics(nivelDataAnt);
+                        
+                        let totalN0 = 0, totalN12 = 0, totalN34 = 0, totalN5 = 0, totalAlumnosNivel = 0;
+                        let desgloseGrupos = [];
+
+                        Object.keys(statsAnt).forEach(g => {
+                            const c = statsAnt[g];
+                            totalN0 += c.n0; totalN12 += c.n12; totalN34 += c.n34; totalN5 += c.n5;
+                            totalAlumnosNivel += c.total;
+                            
+                            let pctAprobado = ((c.n0 / c.total) * 100).toFixed(0);
+                            desgloseGrupos.push(`${g}: <span class="font-semibold text-gray-700">${pctAprobado}% limpio</span>`);
+                        });
+
+                        let pctGlobalN0 = ((totalN0 / totalAlumnosNivel) * 100).toFixed(1);
+
+                        sectionHTML += `
+                            <div class="text-xs bg-white p-2.5 rounded border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div>
+                                    <span class="font-bold text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-[11px] mr-2">${cursoAnt.curso}</span>
+                                    <span class="text-gray-600 font-medium">Total Nivel:</span> 
+                                    <span class="text-gray-900 font-bold">${totalAlumnosNivel} alm.</span> 
+                                    <span class="mx-1 text-gray-300">|</span> 
+                                    <span class="text-green-600 font-semibold">0 Susp: ${totalN0} (${pctGlobalN0}%)</span>, 
+                                    <span class="text-yellow-600">1-2: ${totalN12}</span>, 
+                                    <span class="text-orange-600">3-4: ${totalN34}</span>, 
+                                    <span class="text-red-600">5+: ${totalN5}</span>
+                                </div>
+                                <div class="text-[11px] text-gray-500 italic bg-gray-50 px-2 py-1 rounded border">
+                                    ${desgloseGrupos.join(' • ')}
+                                </div>
+                            </div>`;
                     });
 
-                    const canvasId = `chart-${Math.random().toString(36).substr(2, 9)}`;
-                    section.innerHTML += `
-                        <div class="mb-10">
-                            <h3 class="font-bold text-gray-600 mb-2 uppercase text-sm">📁 Archivo / Año: ${curso.curso}</h3>
-                            <div class="overflow-x-auto mb-4">
-                                <table class="w-full text-xs border border-collapse">
-                                    <thead class="bg-gray-100">
-                                        <tr>
-                                            <th class="p-2 border">Grupo</th>
-                                            <th class="p-2 border">0 Susp.</th>
-                                            <th class="p-2 border">1-2 Susp.</th>
-                                            <th class="p-2 border">3-4 Susp.</th>
-                                            <th class="p-2 border">5 o más</th>
-                                            <th class="p-2 border">Total Alumnos</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>${tableRows}</tbody>
-                                </table>
-                            </div>
-                            <div class="h-48 w-full"><canvas id="${canvasId}"></canvas></div>
-                        </div>`;
-                    
-                    container.appendChild(section);
+                    sectionHTML += `</div></div>`;
+                }
 
-                    setTimeout(() => {
-                        new Chart(document.getElementById(canvasId), {
-                            type: 'bar',
-                            data: {
-                                labels: gLabels,
-                                datasets: [
-                                    { label: '0 Susp', data: d0, backgroundColor: '#22c55e' },
-                                    { label: '1-2 Susp', data: d12, backgroundColor: '#eab308' },
-                                    { label: '3-4 Susp', data: d34, backgroundColor: '#f97316' },
-                                    { label: '5+ Susp', data: d5, backgroundColor: '#ef4444' }
-                                ]
+                section.innerHTML += sectionHTML;
+                container.appendChild(section);
+
+                // Inyección del gráfico del curso actual exclusivamente
+                setTimeout(() => {
+                    const ctx = document.getElementById(canvasId);
+                    if (!ctx) return;
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: gLabels,
+                            datasets: [
+                                { label: '0 Susp', data: d0, backgroundColor: '#22c55e' },
+                                { label: '1-2 Susp', data: d12, backgroundColor: '#eab308' },
+                                { label: '3-4 Susp', data: d34, backgroundColor: '#f97316' },
+                                { label: '5+ Susp', data: d5, backgroundColor: '#ef4444' }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: { 
+                                y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%', font: { size: 9 } } },
+                                x: { ticks: { font: { size: 10, weight: 'bold' } } }
                             },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } } },
-                                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } }
+                            plugins: { 
+                                legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } 
                             }
-                        });
-                    }, 50);
-                });
+                        }
+                    });
+                }, 50);
             });
         }
 
-        // --- FUNCIÓN DE EXPORTACIÓN A UN EXCEL EDITABLE ---
         function exportToExcel() {
             if (globalReportData.length === 0) return;
 
             const wb = XLSX.utils.book_new();
 
-            NIVELES_ORDEN.forEach(nivel => {
+            NIVELES_ORDER.forEach(nivel => {
                 let sheetRows = [];
                 let tieneDatosNivel = false;
 
-                globalReportData.forEach(curso => {
+                globalReportData.forEach((curso, index) => {
                     const nivelData = curso.niveles[nivel];
                     if (!nivelData) return;
                     
                     tieneDatosNivel = true;
-                    sheetRows.push({ "Grupo": `ARCHIVO / CURSO: ${curso.curso}`, "0 Susp.": "", "1-2 Susp.": "", "3-4 Susp.": "", "5 o más": "", "Total Alumnos": "" });
+                    const etiquetaCurso = (index === 0) ? `CURSO ACTUAL: ${curso.curso}` : `HISTÓRICO: ${curso.curso}`;
+                    sheetRows.push({ "Grupo": etiquetaCurso, "0 Susp.": "", "1-2 Susp.": "", "3-4 Susp.": "", "5 o más": "", "Total Alumnos": "" });
 
                     const stats = calculateStatistics(nivelData);
                     Object.keys(stats).forEach(grupo => {
@@ -295,18 +350,16 @@
                             "Total Alumnos": c.total
                         });
                     });
-                    sheetRows.push({}); // Línea en blanco separadora entre años/archivos
+                    sheetRows.push({}); 
                 });
 
                 if (tieneDatosNivel) {
                     const ws = XLSX.utils.json_to_sheet(sheetRows);
-                    // Nombre de la pestaña acortado (máx 31 caracteres exigido por Excel)
                     const tabName = nivel.replace(" (Incl. 1º DIV)", "").replace(" (Incl. 2º DIV)", "");
                     XLSX.utils.book_append_sheet(wb, ws, tabName);
                 }
             });
 
-            // Descarga el archivo Excel final editable
             XLSX.writeFile(wb, "Informe_Resumen_Academico_Jefatura.xlsx");
         }
     </script>
