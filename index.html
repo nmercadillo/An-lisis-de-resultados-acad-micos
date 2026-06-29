@@ -56,7 +56,7 @@
         ];
 
         let globalReportData = []; 
-        let activeChartsRegistry = []; // Registro para evitar fugas de memoria gráfica
+        let activeChartsRegistry = []; 
 
         async function startAnalysis() {
             const fileInput = document.getElementById('fileInput');
@@ -70,7 +70,6 @@
                 return;
             }
 
-            // Destruir gráficas previas para no saturar memoria
             activeChartsRegistry.forEach(chart => chart.destroy());
             activeChartsRegistry = [];
 
@@ -95,7 +94,6 @@
                 }
             }
 
-            // Ordenar: el archivo con el curso/año más reciente queda en la posición 0 (Curso Actual)
             rawDataList.sort((a, b) => b.curso.localeCompare(a.curso, undefined, {numeric: true, sensitivity: 'base'}));
             globalReportData = rawDataList;
 
@@ -116,7 +114,6 @@
             });
         }
 
-        // Lector seguro: busca el primer número real e ignora vacíos, textos "NP" y falsos ceros
         function obtenerNotaValida(...celdas) {
             for (let val of celdas) {
                 if (val === undefined || val === null || val === "") continue;
@@ -185,7 +182,7 @@
                 
                 Object.values(alumnos).forEach(notas => {
                     const notasValidas = notas.filter(n => typeof n === 'number' && !isNaN(n));
-                    if (notasValidas.length === 0) return; // Evita contar alumnos sin calificar
+                    if (notasValidas.length === 0) return; 
 
                     const susp = notasValidas.filter(n => n < 5).length;
                     c.total++;
@@ -212,7 +209,6 @@
                 const statsActual = calculateStatistics(cursoActual.niveles[nivel]);
                 const cursosAnt = cursosConDatos.slice(1);
                 
-                // Comprobar si hay algún dato útil que mostrar en este nivel
                 const hayHist = cursosAnt.some(c => Object.keys(calculateStatistics(c.niveles[nivel])).length > 0);
                 if (Object.keys(statsActual).length === 0 && !hayHist) return;
 
@@ -223,7 +219,7 @@
                 const canvasId = `chart_${Math.random().toString(36).substring(2, 9)}`;
                 const gLabels = [], d0 = [], d12 = [], d34 = [], d5 = [];
 
-                // --- 1. CURSO ACTUAL (Tabla completa + Gráfica) ---
+                // --- 1. CURSO ACTUAL (Desglosado por grupo + Gráfica) ---
                 if (Object.keys(statsActual).length > 0) {
                     let rowsAct = "";
                     Object.keys(statsActual).forEach(g => {
@@ -267,59 +263,63 @@
                         </div>`;
                 }
 
-                // --- 2. AÑOS ANTERIORES (Misma tabla en líneas por grupo, SIN Gráfica) ---
-                let htmlHistoricos = "";
+                // --- 2. AÑOS ANTERIORES (Condensado en 1 fila total por curso) ---
+                let rowsHistorico = "";
+
                 cursosAnt.forEach(cAnt => {
                     const statsAnt = calculateStatistics(cAnt.niveles[nivel]);
                     if (Object.keys(statsAnt).length === 0) return;
 
-                    let rowsAnt = "";
-                    Object.keys(statsAnt).forEach(g => {
-                        const c = statsAnt[g];
-                        rowsAnt += `
-                            <tr class="border-b bg-white hover:bg-gray-50 text-center text-xs">
-                                <td class="p-2 border text-left font-bold text-gray-700">${g}</td>
-                                <td class="p-2 border text-green-700">${c.n0} (${(c.n0/c.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border text-yellow-700">${c.n12} (${(c.n12/c.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border text-orange-700">${c.n34} (${(c.n34/c.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border text-red-700">${c.n5} (${(c.n5/c.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border font-bold text-gray-600 bg-gray-50">${c.total}</td>
-                            </tr>`;
+                    // Agrupación automática de todos los grupos del nivel
+                    let agg = { n0: 0, n12: 0, n34: 0, n5: 0, total: 0 };
+                    Object.values(statsAnt).forEach(c => {
+                        agg.n0 += c.n0;
+                        agg.n12 += c.n12;
+                        agg.n34 += c.n34;
+                        agg.n5 += c.n5;
+                        agg.total += c.total;
                     });
 
-                    htmlHistoricos += `
-                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mt-4">
-                            <h5 class="font-bold text-gray-600 mb-2 text-xs uppercase">Histórico: ${cAnt.curso}</h5>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-xs border border-collapse shadow-sm">
-                                    <thead class="bg-gray-200 text-gray-700">
-                                        <tr>
-                                            <th class="p-2 border text-left">Grupo</th>
-                                            <th class="p-2 border">0 Susp.</th>
-                                            <th class="p-2 border">1-2 Susp.</th>
-                                            <th class="p-2 border">3-4 Susp.</th>
-                                            <th class="p-2 border">5 o más</th>
-                                            <th class="p-2 border">Total Alumnos</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>${rowsAnt}</tbody>
-                                </table>
-                            </div>
-                        </div>`;
+                    if (agg.total === 0) return;
+
+                    rowsHistorico += `
+                        <tr class="border-b bg-white hover:bg-gray-50 text-center text-xs">
+                            <td class="p-2 border text-left font-bold text-gray-700">${cAnt.curso}</td>
+                            <td class="p-2 border text-green-700 font-medium">${agg.n0} (${(agg.n0/agg.total*100).toFixed(0)}%)</td>
+                            <td class="p-2 border text-yellow-700">${agg.n12} (${(agg.n12/agg.total*100).toFixed(0)}%)</td>
+                            <td class="p-2 border text-orange-700">${agg.n34} (${(agg.n34/agg.total*100).toFixed(0)}%)</td>
+                            <td class="p-2 border text-red-700">${agg.n5} (${(agg.n5/agg.total*100).toFixed(0)}%)</td>
+                            <td class="p-2 border font-bold text-gray-600 bg-gray-50">${agg.total}</td>
+                        </tr>`;
                 });
 
-                if (htmlHistoricos !== "") {
+                if (rowsHistorico !== "") {
                     htmlContenido += `
                         <div class="mt-6 pt-6 border-t border-gray-300">
-                            <h4 class="font-bold text-gray-500 uppercase text-xs mb-2 tracking-wider">📚 Histórico comparativo (Años anteriores)</h4>
-                            ${htmlHistoricos}
+                            <h4 class="font-bold text-gray-500 uppercase text-xs mb-3 tracking-wider">📚 Histórico comparativo (Totales globales del nivel)</h4>
+                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-xs border border-collapse shadow-sm">
+                                        <thead class="bg-gray-200 text-gray-700">
+                                            <tr>
+                                                <th class="p-2 border text-left">Curso / Archivo</th>
+                                                <th class="p-2 border">0 Susp.</th>
+                                                <th class="p-2 border">1-2 Susp.</th>
+                                                <th class="p-2 border">3-4 Susp.</th>
+                                                <th class="p-2 border">5 o más</th>
+                                                <th class="p-2 border">Total Alumnos</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>${rowsHistorico}</tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>`;
                 }
 
                 section.innerHTML = htmlContenido;
                 container.appendChild(section);
 
-                // Instanciar gráfica únicamente si el Curso Actual tenía alumnos
                 if (gLabels.length > 0) {
                     setTimeout(() => {
                         const canvasEl = document.getElementById(canvasId);
