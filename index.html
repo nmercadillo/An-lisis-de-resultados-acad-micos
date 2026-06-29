@@ -238,6 +238,8 @@
 
                 if (Object.keys(statsActual).length > 0) {
                     let rowsAct = "";
+                    let totAct = { n0: 0, n12: 0, n34: 0, n5: 0, total: 0 }; // Acumulador para la nueva fila total
+
                     Object.keys(statsActual).forEach(g => {
                         const c = statsActual[g];
                         gLabels.push(g);
@@ -245,6 +247,13 @@
                         d12.push((c.n12 / c.total * 100).toFixed(1));
                         d34.push((c.n34 / c.total * 100).toFixed(1));
                         d5.push((c.n5 / c.total * 100).toFixed(1));
+
+                        // Sumamos al total del curso actual
+                        totAct.n0 += c.n0;
+                        totAct.n12 += c.n12;
+                        totAct.n34 += c.n34;
+                        totAct.n5 += c.n5;
+                        totAct.total += c.total;
 
                         rowsAct += `
                             <tr class="border-b hover:bg-gray-50 text-center text-xs">
@@ -256,6 +265,19 @@
                                 <td class="p-2 border font-bold bg-gray-100 text-gray-700">${c.total}</td>
                             </tr>`;
                     });
+
+                    // --- DETALLE SOLICITADO: FILA DE TOTAL DEL NIVEL ANTES DE LA GRÁFICA ---
+                    if (totAct.total > 0) {
+                        rowsAct += `
+                            <tr class="border-t-2 border-blue-900 bg-blue-50 font-bold text-center text-xs">
+                                <td class="p-2 border text-left text-blue-950 uppercase tracking-wider">TOTAL ${nivel}</td>
+                                <td class="p-2 border text-green-900">${totAct.n0} (${(totAct.n0/totAct.total*100).toFixed(0)}%)</td>
+                                <td class="p-2 border text-yellow-900">${totAct.n12} (${(totAct.n12/totAct.total*100).toFixed(0)}%)</td>
+                                <td class="p-2 border text-orange-900">${totAct.n34} (${(totAct.n34/totAct.total*100).toFixed(0)}%)</td>
+                                <td class="p-2 border text-red-900">${totAct.n5} (${(totAct.n5/totAct.total*100).toFixed(0)}%)</td>
+                                <td class="p-2 border bg-blue-100 text-blue-950">${totAct.total}</td>
+                            </tr>`;
+                    }
 
                     htmlContenido += `
                         <div class="mb-6">
@@ -352,7 +374,7 @@
                             options: {
                                 responsive: true,
                                 maintainAspectRatio: false,
-                                animation: { duration: 0 }, // Fundamental: Desactiva animaciones para que html2canvas capture el gráfico ya pintado de inmediato
+                                animation: { duration: 0 }, 
                                 scales: { 
                                     y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%', font: { size: 9 } } },
                                     x: { ticks: { font: { size: 10, weight: 'bold' } } }
@@ -407,7 +429,6 @@
             XLSX.writeFile(wb, "Informe_Resumen_Academico_Jefatura.xlsx");
         }
 
-        // --- FUNCIÓN PDF CORREGIDA Y PROBADA ---
         function exportToPDF() {
             if (globalReportData.length === 0) return;
 
@@ -424,12 +445,11 @@
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
             };
 
-            // Pequeño retardo asíncrono para dar tiempo a procesar la estructura DOM estática en navegadores basados en Chromium
             setTimeout(() => {
                 html2pdf().set(opt).from(element).save().then(() => {
                     status.innerText = "Archivo PDF descargado correctamente.";
                 }).catch(err => {
-                    console.error("Error generando PDF: ", err);
+                    console.error("Error generating PDF: ", err);
                     status.innerText = "Hubo un error al crear el PDF.";
                 });
             }, 300);
