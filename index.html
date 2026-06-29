@@ -18,7 +18,7 @@
         </header>
 
         <div class="bg-white p-6 rounded-b-xl shadow-md mb-6 border-x border-b">
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Evaluación</label>
                     <select id="evalSelect" class="w-full border p-2 rounded bg-gray-50 text-sm">
@@ -32,18 +32,21 @@
                     <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Archivos Excel (Históricos)</label>
                     <input type="file" id="fileInput" accept=".xlsx, .xls" multiple class="w-full text-sm border p-1 rounded bg-white">
                 </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-gray-100">
                 <div>
-                    <button onclick="startAnalysis()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded transition shadow-md text-sm">
+                    <button onclick="startAnalysis()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-3 rounded transition shadow-md text-sm">
                         🚀 GENERAR INFORME
                     </button>
                 </div>
                 <div>
-                    <button id="btnExport" onclick="exportToExcel()" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded transition shadow-md opacity-50 cursor-not-allowed text-sm">
+                    <button id="btnExport" onclick="exportToExcel()" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-3 rounded transition shadow-md opacity-50 cursor-not-allowed text-sm">
                         📥 EXPORTAR EXCEL
                     </button>
                 </div>
                 <div>
-                    <button id="btnExportPdf" onclick="exportToPDF()" disabled class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded transition shadow-md opacity-50 cursor-not-allowed text-sm">
+                    <button id="btnExportPdf" onclick="exportToPDF()" disabled class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-3 rounded transition shadow-md opacity-50 cursor-not-allowed text-sm">
                         📄 EXPORTAR PDF
                     </button>
                 </div>
@@ -233,4 +236,106 @@
 
                 if (Object.keys(statsActual).length > 0) {
                     let rowsAct = "";
-                    Object.keys(statsActual
+                    Object.keys(statsActual).forEach(g => {
+                        const c = statsActual[g];
+                        gLabels.push(g);
+                        d0.push((c.n0 / c.total * 100).toFixed(1));
+                        d12.push((c.n12 / c.total * 100).toFixed(1));
+                        d34.push((c.n34 / c.total * 100).toFixed(1));
+                        d5.push((c.n5 / c.total * 100).toFixed(1));
+
+                        rowsAct += `
+                            <tr class="border-b hover:bg-gray-50 text-center text-xs">
+                                <td class="p-2 border text-left font-bold text-blue-700">${g}</td>
+                                <td class="p-2 border bg-green-50 text-green-800 font-medium">${c.n0} (${(c.n0/c.total*100).toFixed(0)}%)</td>
+                                <td class="p-2 border bg-yellow-50 text-yellow-800">${c.n12} (${(c.n12/c.total*100).toFixed(0)}%)</td>
+                                <td class="p-2 border bg-orange-50 text-orange-800">${c.n34} (${(c.n34/c.total*100).toFixed(0)}%)</td>
+                                <td class="p-2 border bg-red-50 text-red-800">${c.n5} (${(c.n5/c.total*100).toFixed(0)}%)</td>
+                                <td class="p-2 border font-bold bg-gray-100 text-gray-700">${c.total}</td>
+                            </tr>`;
+                    });
+
+                    htmlContenido += `
+                        <div class="mb-6">
+                            <h3 class="font-bold text-gray-700 uppercase text-xs tracking-wider mb-2">📊 Curso Actual: ${cursoActual.curso}</h3>
+                            <div class="overflow-x-auto mb-4">
+                                <table class="w-full text-xs border border-collapse shadow-sm">
+                                    <thead class="bg-blue-900 text-white">
+                                        <tr>
+                                            <th class="p-2 border text-left">Grupo</th>
+                                            <th class="p-2 border">0 Susp.</th>
+                                            <th class="p-2 border">1-2 Susp.</th>
+                                            <th class="p-2 border">3-4 Susp.</th>
+                                            <th class="p-2 border">5 o más</th>
+                                            <th class="p-2 border">Total Alumnos</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${rowsAct}</tbody>
+                                </table>
+                            </div>
+                            <div class="h-44 w-full bg-gray-50 p-2 rounded border mb-6"><canvas id="${canvasId}"></canvas></div>
+                        </div>`;
+                }
+
+                let rowsHistorico = "";
+
+                cursosAnt.forEach(cAnt => {
+                    const statsAnt = calculateStatistics(cAnt.niveles[nivel]);
+                    if (Object.keys(statsAnt).length === 0) return;
+
+                    let agg = { n0: 0, n12: 0, n34: 0, n5: 0, total: 0 };
+                    Object.values(statsAnt).forEach(c => {
+                        agg.n0 += c.n0;
+                        agg.n12 += c.n12;
+                        agg.n34 += c.n34;
+                        agg.n5 += c.n5;
+                        agg.total += c.total;
+                    });
+
+                    if (agg.total === 0) return;
+
+                    rowsHistorico += `
+                        <tr class="border-b bg-white hover:bg-gray-50 text-center text-xs">
+                            <td class="p-2 border text-left font-bold text-gray-700">${cAnt.curso}</td>
+                            <td class="p-2 border text-green-700 font-medium">${agg.n0} (${(agg.n0/agg.total*100).toFixed(0)}%)</td>
+                            <td class="p-2 border text-yellow-700">${agg.n12} (${(agg.n12/agg.total*100).toFixed(0)}%)</td>
+                            <td class="p-2 border text-orange-700">${agg.n34} (${(agg.n34/agg.total*100).toFixed(0)}%)</td>
+                            <td class="p-2 border text-red-700">${agg.n5} (${(agg.n5/agg.total*100).toFixed(0)}%)</td>
+                            <td class="p-2 border font-bold text-gray-600 bg-gray-50">${agg.total}</td>
+                        </tr>`;
+                });
+
+                if (rowsHistorico !== "") {
+                    htmlContenido += `
+                        <div class="mt-6 pt-6 border-t border-gray-300">
+                            <h4 class="font-bold text-gray-500 uppercase text-xs mb-3 tracking-wider">📚 Histórico comparativo (Totales globales del nivel)</h4>
+                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-xs border border-collapse shadow-sm">
+                                        <thead class="bg-gray-200 text-gray-700">
+                                            <tr>
+                                                <th class="p-2 border text-left">Curso / Archivo</th>
+                                                <th class="p-2 border">0 Susp.</th>
+                                                <th class="p-2 border">1-2 Susp.</th>
+                                                <th class="p-2 border">3-4 Susp.</th>
+                                                <th class="p-2 border">5 o más</th>
+                                                <th class="p-2 border">Total Alumnos</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>${rowsHistorico}</tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>`;
+                }
+
+                section.innerHTML = htmlContenido;
+                container.appendChild(section);
+
+                if (gLabels.length > 0) {
+                    setTimeout(() => {
+                        const canvasEl = document.getElementById(canvasId);
+                        if (!canvasEl) return;
+                        const newChart = new Chart(canvasEl, {
+                            type: 'bar',
+                            data
