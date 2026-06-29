@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 p-4">
 
@@ -17,7 +18,7 @@
         </header>
 
         <div class="bg-white p-6 rounded-b-xl shadow-md mb-6 border-x border-b">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                 <div>
                     <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Evaluación</label>
                     <select id="evalSelect" class="w-full border p-2 rounded bg-gray-50 text-sm">
@@ -32,13 +33,18 @@
                     <input type="file" id="fileInput" accept=".xlsx, .xls" multiple class="w-full text-sm border p-1 rounded bg-white">
                 </div>
                 <div>
-                    <button onclick="startAnalysis()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition shadow-md text-sm">
+                    <button onclick="startAnalysis()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded transition shadow-md text-sm">
                         🚀 GENERAR INFORME
                     </button>
                 </div>
                 <div>
-                    <button id="btnExport" onclick="exportToExcel()" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition shadow-md opacity-50 cursor-not-allowed text-sm">
-                        📥 EXPORTAR EXCEL EDITABLE
+                    <button id="btnExport" onclick="exportToExcel()" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded transition shadow-md opacity-50 cursor-not-allowed text-sm">
+                        📥 EXPORTAR EXCEL
+                    </button>
+                </div>
+                <div>
+                    <button id="btnExportPdf" onclick="exportToPDF()" disabled class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded transition shadow-md opacity-50 cursor-not-allowed text-sm">
+                        📄 EXPORTAR PDF
                     </button>
                 </div>
             </div>
@@ -64,6 +70,7 @@
             const container = document.getElementById('resultsContainer');
             const status = document.getElementById('statusMsg');
             const btnExport = document.getElementById('btnExport');
+            const btnExportPdf = document.getElementById('btnExportPdf');
 
             if (fileInput.files.length === 0) {
                 alert("Por favor, selecciona al menos un archivo Excel.");
@@ -75,8 +82,11 @@
 
             container.innerHTML = "<p class='text-center p-10 font-bold text-gray-500'>Procesando hojas de cálculo...</p>";
             status.innerText = "Leyendo archivos...";
+            
             btnExport.disabled = true;
             btnExport.classList.add('opacity-50', 'cursor-not-allowed');
+            btnExportPdf.disabled = true;
+            btnExportPdf.classList.add('opacity-50', 'cursor-not-allowed');
 
             let rawDataList = [];
             const files = fileInput.files;
@@ -103,6 +113,8 @@
             
             btnExport.disabled = false;
             btnExport.classList.remove('opacity-50', 'cursor-not-allowed');
+            btnExportPdf.disabled = false;
+            btnExportPdf.classList.remove('opacity-50', 'cursor-not-allowed');
         }
 
         function readExcel(file) {
@@ -219,178 +231,6 @@
                 const canvasId = `chart_${Math.random().toString(36).substring(2, 9)}`;
                 const gLabels = [], d0 = [], d12 = [], d34 = [], d5 = [];
 
-                // --- 1. CURSO ACTUAL (Desglosado por grupo + Gráfica) ---
                 if (Object.keys(statsActual).length > 0) {
                     let rowsAct = "";
-                    Object.keys(statsActual).forEach(g => {
-                        const c = statsActual[g];
-                        gLabels.push(g);
-                        d0.push((c.n0 / c.total * 100).toFixed(1));
-                        d12.push((c.n12 / c.total * 100).toFixed(1));
-                        d34.push((c.n34 / c.total * 100).toFixed(1));
-                        d5.push((c.n5 / c.total * 100).toFixed(1));
-
-                        rowsAct += `
-                            <tr class="border-b hover:bg-gray-50 text-center text-xs">
-                                <td class="p-2 border text-left font-bold text-blue-700">${g}</td>
-                                <td class="p-2 border bg-green-50 text-green-800 font-medium">${c.n0} (${(c.n0/c.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border bg-yellow-50 text-yellow-800">${c.n12} (${(c.n12/c.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border bg-orange-50 text-orange-800">${c.n34} (${(c.n34/c.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border bg-red-50 text-red-800">${c.n5} (${(c.n5/c.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border font-bold bg-gray-100 text-gray-700">${c.total}</td>
-                            </tr>`;
-                    });
-
-                    htmlContenido += `
-                        <div class="mb-6">
-                            <h3 class="font-bold text-gray-700 uppercase text-xs tracking-wider mb-2">📊 Curso Actual: ${cursoActual.curso}</h3>
-                            <div class="overflow-x-auto mb-4">
-                                <table class="w-full text-xs border border-collapse shadow-sm">
-                                    <thead class="bg-blue-900 text-white">
-                                        <tr>
-                                            <th class="p-2 border text-left">Grupo</th>
-                                            <th class="p-2 border">0 Susp.</th>
-                                            <th class="p-2 border">1-2 Susp.</th>
-                                            <th class="p-2 border">3-4 Susp.</th>
-                                            <th class="p-2 border">5 o más</th>
-                                            <th class="p-2 border">Total Alumnos</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>${rowsAct}</tbody>
-                                </table>
-                            </div>
-                            <div class="h-44 w-full bg-gray-50 p-2 rounded border mb-6"><canvas id="${canvasId}"></canvas></div>
-                        </div>`;
-                }
-
-                // --- 2. AÑOS ANTERIORES (Condensado en 1 fila total por curso) ---
-                let rowsHistorico = "";
-
-                cursosAnt.forEach(cAnt => {
-                    const statsAnt = calculateStatistics(cAnt.niveles[nivel]);
-                    if (Object.keys(statsAnt).length === 0) return;
-
-                    // Agrupación automática de todos los grupos del nivel
-                    let agg = { n0: 0, n12: 0, n34: 0, n5: 0, total: 0 };
-                    Object.values(statsAnt).forEach(c => {
-                        agg.n0 += c.n0;
-                        agg.n12 += c.n12;
-                        agg.n34 += c.n34;
-                        agg.n5 += c.n5;
-                        agg.total += c.total;
-                    });
-
-                    if (agg.total === 0) return;
-
-                    rowsHistorico += `
-                        <tr class="border-b bg-white hover:bg-gray-50 text-center text-xs">
-                            <td class="p-2 border text-left font-bold text-gray-700">${cAnt.curso}</td>
-                            <td class="p-2 border text-green-700 font-medium">${agg.n0} (${(agg.n0/agg.total*100).toFixed(0)}%)</td>
-                            <td class="p-2 border text-yellow-700">${agg.n12} (${(agg.n12/agg.total*100).toFixed(0)}%)</td>
-                            <td class="p-2 border text-orange-700">${agg.n34} (${(agg.n34/agg.total*100).toFixed(0)}%)</td>
-                            <td class="p-2 border text-red-700">${agg.n5} (${(agg.n5/agg.total*100).toFixed(0)}%)</td>
-                            <td class="p-2 border font-bold text-gray-600 bg-gray-50">${agg.total}</td>
-                        </tr>`;
-                });
-
-                if (rowsHistorico !== "") {
-                    htmlContenido += `
-                        <div class="mt-6 pt-6 border-t border-gray-300">
-                            <h4 class="font-bold text-gray-500 uppercase text-xs mb-3 tracking-wider">📚 Histórico comparativo (Totales globales del nivel)</h4>
-                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-xs border border-collapse shadow-sm">
-                                        <thead class="bg-gray-200 text-gray-700">
-                                            <tr>
-                                                <th class="p-2 border text-left">Curso / Archivo</th>
-                                                <th class="p-2 border">0 Susp.</th>
-                                                <th class="p-2 border">1-2 Susp.</th>
-                                                <th class="p-2 border">3-4 Susp.</th>
-                                                <th class="p-2 border">5 o más</th>
-                                                <th class="p-2 border">Total Alumnos</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>${rowsHistorico}</tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>`;
-                }
-
-                section.innerHTML = htmlContenido;
-                container.appendChild(section);
-
-                if (gLabels.length > 0) {
-                    setTimeout(() => {
-                        const canvasEl = document.getElementById(canvasId);
-                        if (!canvasEl) return;
-                        const newChart = new Chart(canvasEl, {
-                            type: 'bar',
-                            data: {
-                                labels: gLabels,
-                                datasets: [
-                                    { label: '0 Susp', data: d0, backgroundColor: '#22c55e' },
-                                    { label: '1-2 Susp', data: d12, backgroundColor: '#eab308' },
-                                    { label: '3-4 Susp', data: d34, backgroundColor: '#f97316' },
-                                    { label: '5+ Susp', data: d5, backgroundColor: '#ef4444' }
-                                ]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                scales: { 
-                                    y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%', font: { size: 9 } } },
-                                    x: { ticks: { font: { size: 10, weight: 'bold' } } }
-                                },
-                                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
-                            }
-                        });
-                        activeChartsRegistry.push(newChart);
-                    }, 40);
-                }
-            });
-        }
-
-        function exportToExcel() {
-            if (globalReportData.length === 0) return;
-
-            const wb = XLSX.utils.book_new();
-
-            NIVELES_ORDEN.forEach(nivel => {
-                let sheetRows = [];
-                let tieneDatosNivel = false;
-
-                globalReportData.forEach((curso, index) => {
-                    const stats = calculateStatistics(curso.niveles[nivel]);
-                    if (Object.keys(stats).length === 0) return;
-                    
-                    tieneDatosNivel = true;
-                    const etiquetaCurso = (index === 0) ? `CURSO ACTUAL: ${curso.curso}` : `HISTÓRICO: ${curso.curso}`;
-                    sheetRows.push({ "Grupo": etiquetaCurso, "0 Susp.": "", "1-2 Susp.": "", "3-4 Susp.": "", "5 o más": "", "Total Alumnos": "" });
-
-                    Object.keys(stats).forEach(grupo => {
-                        const c = stats[grupo];
-                        sheetRows.push({
-                            "Grupo": grupo,
-                            "0 Susp.": `${c.n0} (${(c.n0/c.total*100).toFixed(0)}%)`,
-                            "1-2 Susp.": `${c.n12} (${(c.n12/c.total*100).toFixed(0)}%)`,
-                            "3-4 Susp.": `${c.n34} (${(c.n34/c.total*100).toFixed(0)}%)`,
-                            "5 o más": `${c.n5} (${(c.n5/c.total*100).toFixed(0)}%)`,
-                            "Total Alumnos": c.total
-                        });
-                    });
-                    sheetRows.push({}); 
-                });
-
-                if (tieneDatosNivel) {
-                    const ws = XLSX.utils.json_to_sheet(sheetRows);
-                    const tabName = nivel.replace(" (Incl. 1º DIV)", "").replace(" (Incl. 2º DIV)", "");
-                    XLSX.utils.book_append_sheet(wb, ws, tabName);
-                }
-            });
-
-            XLSX.writeFile(wb, "Informe_Resumen_Academico_Jefatura.xlsx");
-        }
-    </script>
-</body>
-</html>
+                    Object.keys(statsActual
