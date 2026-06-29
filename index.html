@@ -238,7 +238,7 @@
 
                 if (Object.keys(statsActual).length > 0) {
                     let rowsAct = "";
-                    let totAct = { n0: 0, n12: 0, n34: 0, n5: 0, total: 0 }; // Acumulador para la nueva fila total
+                    let totAct = { n0: 0, n12: 0, n34: 0, n5: 0, total: 0 };
 
                     Object.keys(statsActual).forEach(g => {
                         const c = statsActual[g];
@@ -248,7 +248,6 @@
                         d34.push((c.n34 / c.total * 100).toFixed(1));
                         d5.push((c.n5 / c.total * 100).toFixed(1));
 
-                        // Sumamos al total del curso actual
                         totAct.n0 += c.n0;
                         totAct.n12 += c.n12;
                         totAct.n34 += c.n34;
@@ -257,46 +256,61 @@
 
                         rowsAct += `
                             <tr class="border-b hover:bg-gray-50 text-center text-xs">
-                                <td class="p-2 border text-left font-bold text-blue-700">${g}</td>
-                                <td class="p-2 border bg-green-50 text-green-800 font-medium">${c.n0} (${(c.n0/c.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border bg-yellow-50 text-yellow-800">${c.n12} (${(c.n12/c.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border bg-orange-50 text-orange-800">${c.n34} (${(c.n34/c.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border bg-red-50 text-red-800">${c.n5} (${(c.n5/c.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border font-bold bg-gray-100 text-gray-700">${c.total}</td>
+                                <td class="p-2 border text-left font-bold text-blue-700 w-[16.6%]">${g}</td>
+                                <td class="p-2 border bg-green-50 text-green-800 font-medium w-[16.6%]">${c.n0} (${(c.n0/c.total*100).toFixed(0)}%)</td>
+                                <td class="p-2 border bg-yellow-50 text-yellow-800 w-[16.6%]">${c.n12} (${(c.n12/c.total*100).toFixed(0)}%)</td>
+                                <td class="p-2 border bg-orange-50 text-orange-800 w-[16.6%]">${c.n34} (${(c.n34/c.total*100).toFixed(0)}%)</td>
+                                <td class="p-2 border bg-red-50 text-red-800 w-[16.6%]">${c.n5} (${(c.n5/c.total*100).toFixed(0)}%)</td>
+                                <td class="p-2 border font-bold bg-gray-100 text-gray-700 w-[16.6%]">${c.total}</td>
                             </tr>`;
                     });
 
-                    // --- DETALLE SOLICITADO: FILA DE TOTAL DEL NIVEL ANTES DE LA GRÁFICA ---
+                    // SUMARIO TOTAL SEPARADO FÍSICAMENTE DE LA TABLA DE GRUPOS
+                    let bloqueTotalHtml = "";
                     if (totAct.total > 0) {
-                        rowsAct += `
-                            <tr class="border-t-2 border-blue-900 bg-blue-50 font-bold text-center text-xs">
-                                <td class="p-2 border text-left text-blue-950 uppercase tracking-wider">TOTAL ${nivel}</td>
-                                <td class="p-2 border text-green-900">${totAct.n0} (${(totAct.n0/totAct.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border text-yellow-900">${totAct.n12} (${(totAct.n12/totAct.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border text-orange-900">${totAct.n34} (${(totAct.n34/totAct.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border text-red-900">${totAct.n5} (${(totAct.n5/totAct.total*100).toFixed(0)}%)</td>
-                                <td class="p-2 border bg-blue-100 text-blue-950">${totAct.total}</td>
-                            </tr>`;
+                        const p0 = (totAct.n0 / totAct.total * 100).toFixed(0);
+                        const p12 = (totAct.n12 / totAct.total * 100).toFixed(0);
+                        const p34 = (totAct.n34 / totAct.total * 100).toFixed(0);
+                        const p5 = (totAct.n5 / totAct.total * 100).toFixed(0);
+
+                        bloqueTotalHtml = `
+                            <div class="mb-5 mt-1">
+                                <table class="w-full text-xs border border-collapse shadow">
+                                    <tbody>
+                                        <tr class="font-bold text-center border-2 border-blue-900 text-blue-950 bg-blue-50">
+                                            <td class="p-2.5 border border-blue-300 text-left uppercase tracking-wider bg-blue-200/70 w-[16.6%]">TOTAL ${nivel}</td>
+                                            <td class="p-2.5 border border-blue-300 text-green-900 bg-green-100 w-[16.6%]">${totAct.n0} (${p0}%)</td>
+                                            <td class="p-2.5 border border-blue-300 text-yellow-900 bg-yellow-100 w-[16.6%]">${totAct.n12} (${p12}%)</td>
+                                            <td class="p-2.5 border border-blue-300 text-orange-900 bg-orange-100 w-[16.6%]">${totAct.n34} (${p34}%)</td>
+                                            <td class="p-2.5 border border-blue-300 text-red-900 bg-red-100 w-[16.6%]">${totAct.n5} (${p5}%)</td>
+                                            <td class="p-2.5 border border-blue-300 bg-blue-200 text-blue-950 text-sm w-[16.6%]">${totAct.total}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>`;
                     }
 
                     htmlContenido += `
                         <div class="mb-6">
                             <h3 class="font-bold text-gray-700 uppercase text-xs tracking-wider mb-2">📊 Curso Actual: ${cursoActual.curso}</h3>
-                            <div class="overflow-x-auto mb-4">
+                            <div class="overflow-x-auto mb-2">
                                 <table class="w-full text-xs border border-collapse shadow-sm">
                                     <thead class="bg-blue-900 text-white">
                                         <tr>
-                                            <th class="p-2 border text-left">Grupo</th>
-                                            <th class="p-2 border">0 Susp.</th>
-                                            <th class="p-2 border">1-2 Susp.</th>
-                                            <th class="p-2 border">3-4 Susp.</th>
-                                            <th class="p-2 border">5 o más</th>
-                                            <th class="p-2 border">Total Alumnos</th>
+                                            <th class="p-2 border text-left w-[16.6%]">Grupo</th>
+                                            <th class="p-2 border w-[16.6%]">0 Susp.</th>
+                                            <th class="p-2 border w-[16.6%]">1-2 Susp.</th>
+                                            <th class="p-2 border w-[16.6%]">3-4 Susp.</th>
+                                            <th class="p-2 border w-[16.6%]">5 o más</th>
+                                            <th class="p-2 border w-[16.6%]">Total Alumnos</th>
                                         </tr>
                                     </thead>
                                     <tbody>${rowsAct}</tbody>
                                 </table>
                             </div>
+
+                            ${bloqueTotalHtml}
+
                             <div class="h-44 w-full bg-gray-50 p-2 rounded border mb-6 relative"><canvas id="${canvasId}"></canvas></div>
                         </div>`;
                 }
